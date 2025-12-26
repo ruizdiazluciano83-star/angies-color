@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+glam_agenda.db
+.env
+.venv/
+venv/
