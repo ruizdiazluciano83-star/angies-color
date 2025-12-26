@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fuentes premium -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <title>Angie’s Color</title>
+
+  <style>
+    :root { --gold: #f5d27a; }
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; }
+    .brand { font-family: "Playfair Display", serif; }
+  </style>
+</head>
+
+<body class="bg-zinc-950 text-zinc-100">
+
+  <!-- Fondo glam sutil -->
+  <div class="fixed inset-0 -z-10">
+    <div class="absolute inset-0 bg-gradient-to-b from-zinc-950 via-zinc-950 to-black"></div>
+
+    <div class="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full blur-3xl opacity-30"
+         style="background: radial-gradient(circle at 30% 30%, #f5d27a, transparent 60%);"></div>
+
+    <div class="absolute bottom-[-120px] right-[-120px] h-80 w-80 rounded-full blur-3xl opacity-20"
+         style="background: radial-gradient(circle at 30% 30%, #7c3aed, transparent 60%);"></div>
+
+    <div class="absolute inset-0 opacity-[0.06]"
+         style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 22px 22px;"></div>
+  </div>
+
+  <!-- CONTENEDOR -->
+  <div class="max-w-md mx-auto min-h-screen pb-24 px-4">
+
+    <!-- HEADER -->
+    <header class="pt-6 pb-4">
+      <div class="rounded-3xl border border-zinc-800 bg-white/5 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+        <div class="p-5 flex items-center justify-between">
+          <div class="flex items-center gap-4">
+  <img src="/static/logo.jpeg"
+       alt="Angie’s Color"
+       class="h-20 w-auto object-contain" />
+
+  <div>
+    <div class="text-[11px] tracking-[0.25em] text-zinc-300/80">STUDIO</div>
+    <div class="brand text-1xl leading-tight mt-1">Angie’s Color</div>
+  </div>
+</div>
+
+
+          <div class="h-10 w-10 rounded-2xl border border-zinc-700 bg-gradient-to-br from-amber-200/20 to-zinc-900 flex items-center justify-center">
+            <span class="text-amber-200 font-semibold">AC</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENIDO DE CADA PANTALLA -->
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="fixed bottom-3 left-0 right-0 z-50">
+    <div class="max-w-md mx-auto px-4">
+      <div class="grid grid-cols-4 rounded-3xl border border-zinc-800 bg-black/60 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.45)] overflow-hidden">
+        <a href="/turnos"
+           class="py-4 text-center text-sm font-semibold hover:bg-white/5 active:bg-white/10">
+          Turnos
+        </a>
+        <a href="/clientes"
+           class="py-4 text-center text-sm font-semibold hover:bg-white/5 active:bg-white/10">
+          Ficha
+        </a>
+        <a href="/admin"
+           class="py-4 text-center text-sm font-semibold hover:bg-white/5 active:bg-white/10">
+          Admin
+        </a>
+        <a href="/compras"
+           class="py-4 text-center text-sm font-semibold hover:bg-white/5 active:bg-white/10">
+          Compras
+        </a>
+      </div>
+    </div>
+  </nav>
+
+</body>
+</html>

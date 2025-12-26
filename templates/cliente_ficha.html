@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="mb-3">
+  <div class="text-zinc-400 text-[11px] tracking-widest mb-1">FICHA</div>
+  <h2 class="text-lg font-semibold">{{ client.name }}</h2>
+  {% if error %}
+    <div class="mt-2 text-sm font-semibold text-red-300">{{ error }}</div>
+  {% endif %}
+</div>
+
+<!-- Editar datos -->
+<div class="rounded-3xl border border-zinc-800 bg-white/5 backdrop-blur-xl p-4 mb-4">
+  <div class="text-sm font-semibold text-zinc-200 mb-2">Datos del cliente</div>
+
+  <form method="post" action="/clientes/{{ client.id }}/editar" class="space-y-2">
+    <input name="name" required value="{{ client.name }}"
+      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+    <input name="phone" value="{{ client.phone }}"
+      placeholder="Teléfono"
+      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+    <input name="email" value="{{ client.email }}"
+      placeholder="Email"
+      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+    <textarea name="notes" rows="3"
+      placeholder="Nota general"
+      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">{{ client.notes or "" }}</textarea>
+
+    <button type="submit"
+      class="w-full py-3 rounded-2xl text-sm font-semibold text-zinc-900"
+      style="background: var(--gold);">
+      Guardar cambios
+    </button>
+  </form>
+
+  <form method="post" action="/clientes/{{ client.id }}/eliminar"
+        onsubmit="return confirm('¿Eliminar este cliente? Se borran también sus notas.');"
+        class="mt-3">
+    <button type="submit"
+      class="w-full py-3 rounded-2xl text-sm font-semibold bg-red-600/80 text-white">
+      Eliminar cliente
+    </button>
+  </form>
+</div>
+
+<!-- Agregar nota -->
+<div class="rounded-3xl border border-zinc-800 bg-white/5 backdrop-blur-xl p-4 mb-3">
+  <div class="text-sm font-semibold text-zinc-200 mb-2">Agregar comentario</div>
+  <form method="post" action="/clientes/{{ client.id }}/nota" class="space-y-2">
+    <textarea name="text" rows="3" required
+      placeholder="Ej: Color: 7.1 + oxidante 20vol. Alergia: no. Observación: ..."
+      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm"></textarea>
+    <button type="submit"
+      class="w-full py-3 rounded-2xl text-sm font-semibold text-zinc-900"
+      style="background: var(--gold);">
+      Guardar nota
+    </button>
+  </form>
+</div>
+
+<!-- Historial -->
+<div class="space-y-2">
+  <div class="text-sm font-semibold text-zinc-200">Historial de notas</div>
+
+  {% for n in notes %}
+    <div class="rounded-2xl border border-zinc-800 bg-white/5 backdrop-blur-xl px-4 py-3">
+      <div class="text-zinc-400 text-xs mb-1">{{ n.created_at }}</div>
+      <div class="text-zinc-100 text-sm whitespace-pre-wrap">{{ n.text }}</div>
+    </div>
+  {% else %}
+    <div class="text-zinc-400 text-sm">Todavía no hay notas.</div>
+  {% endfor %}
+</div>
+
+{% endblock %}

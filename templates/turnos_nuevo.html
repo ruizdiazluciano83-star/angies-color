@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="mb-3">
+  <div class="text-zinc-400 text-[11px] tracking-widest mb-1">AGENDA</div>
+  <h2 class="text-lg font-semibold">Nuevo turno</h2>
+  {% if error %}
+    <div class="mt-2 text-sm font-semibold text-red-300">{{ error }}</div>
+  {% endif %}
+</div>
+
+<form method="post" action="/turnos/nuevo" class="space-y-3">
+
+  <!-- FECHA -->
+  <div>
+    <label class="block text-xs text-zinc-400 mb-1">Fecha</label>
+    <input type="date" name="fecha" required value="{{ pref_date }}"
+      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+  </div>
+
+  <!-- HORA -->
+  <div>
+    <label class="block text-xs text-zinc-400 mb-1">Hora</label>
+    <select name="hora" required
+      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+      {% for h in range(8, 20) %}
+        {% for m in [0,30] %}
+          {% set t = "%02d:%02d"|format(h,m) %}
+          <option value="{{ t }}" {% if pref_time==t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- CLIENTE -->
+  <div>
+    <label class="block text-xs text-zinc-400 mb-1">Cliente</label>
+    <select id="clientSelect"
+      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+      <option value="">Seleccionar cliente</option>
+      {% for c in clients %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+      {% endfor %}
+      <option value="new">➕ Crear nuevo cliente</option>
+    </select>
+
+    <input type="hidden" name="client_mode" id="clientMode" value="existing">
+    <input type="hidden" name="client_id" id="clientId" value="0">
+
+    <div id="newClientBox" class="hidden mt-2 space-y-2">
+      <input name="new_client_name" placeholder="Nombre del cliente"
+        class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+      <input name="new_client_phone" placeholder="Teléfono (opcional)"
+        class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+    </div>
+  </div>
+
+  <!-- TRABAJO -->
+  <div>
+    <label class="block text-xs text-zinc-400 mb-1">Trabajo</label>
+    <select name="specialty_id" required
+      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+      <option value="">Seleccionar trabajo</option>
+      {% for s in specialties %}
+        <option value="{{ s.id }}">{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- DURACIÓN -->
+  <div>
+    <label class="block text-xs text-zinc-400 mb-1">Duración</label>
+    <select name="duration_min" required
+      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+      <option value="">Seleccionar duración</option>
+      {% for m in [30,60,90,120,150,180,210,240] %}
+        <option value="{{ m }}">{{ "%02d:%02d"|format(m//60, m%60) }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- STAFF -->
+  <div>
+    <label class="block text-xs text-zinc-400 mb-1">Staff (opcional)</label>
+    <select name="staff_id"
+      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+      <option value="0">Sin asignar</option>
+      {% for p in staff %}
+        <option value="{{ p.id }}">{{ p.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- SEÑA -->
+  <div class="rounded-2xl border border-zinc-800 bg-white/5 backdrop-blur-xl p-4">
+    <label class="flex items-center gap-2 text-sm font-semibold text-zinc-200">
+      <input id="depositChk" type="checkbox" name="deposit_paid" class="w-4 h-4">
+      Dejó seña
+    </label>
+    <div id="depositBox" class="hidden mt-2">
+      <input type="number" name="deposit_amount" min="0" value="0" placeholder="Monto de seña ($)"
+        class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+    </div>
+  </div>
+
+  <button type="submit"
+    class="w-full mt-2 py-3 rounded-2xl text-sm font-semibold text-zinc-900"
+    style="background: var(--gold);">
+    Confirmar turno
+  </button>
+
+</form>
+
+<script>
+  // cliente nuevo / existente
+  const clientSelect = document.getElementById("clientSelect");
+  const clientMode = document.getElementById("clientMode");
+  const clientId = document.getElementById("clientId");
+  const newClientBox = document.getElementById("newClientBox");
+
+  clientSelect.addEventListener("change", () => {
+    const v = clientSelect.value;
+    if (v === "new") {
+      clientMode.value = "new";
+      clientId.value = "0";
+      newClientBox.classList.remove("hidden");
+    } else {
+      clientMode.value = "existing";
+      clientId.value = v || "0";
+      newClientBox.classList.add("hidden");
+    }
+  });
+
+  // seña
+  const chk = document.getElementById("depositChk");
+  const box = document.getElementById("depositBox");
+  chk.addEventListener("change", () => {
+    if (chk.checked) box.classList.remove("hidden");
+    else box.classList.add("hidden");
+  });
+</script>
+
+{% endblock %}
