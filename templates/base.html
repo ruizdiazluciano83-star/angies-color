@@ -1,42 +1,32 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Angie’s Color</title>
-
-  <link rel="manifest" href="/static/manifest.json">
-  <meta name="theme-color" content="#0b0b0d">
-  <link rel="icon" href="/static/logo.jpeg">
 
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
     :root{
-      --bg:#0b0b0d;
-      --gold:#f2cc7a;
+      --gold: #d4af37;
     }
     body{
-      background: radial-gradient(circle at top, rgba(242,204,122,0.08), transparent 45%) , var(--bg);
-      color:#fff;
+      background: radial-gradient(1200px 700px at 20% 0%, rgba(212,175,55,0.18), transparent 60%),
+                  radial-gradient(900px 700px at 90% 10%, rgba(96,165,250,0.14), transparent 55%),
+                  #07090f;
+      color: #fff;
     }
     .card{
-      border:1px solid rgba(255,255,255,0.09);
-      background: rgba(255,255,255,0.04);
-      backdrop-filter: blur(14px);
       border-radius: 24px;
-      box-shadow: 0 18px 50px rgba(0,0,0,0.35);
-    }
-    .btn-tab{
-      border:1px solid rgba(255,255,255,0.10);
+      border: 1px solid rgba(63,63,70,0.9);
       background: rgba(255,255,255,0.04);
-      border-radius: 18px;
-      padding:10px 16px;
-      font-weight: 700;
-      font-size: 14px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 18px 55px rgba(0,0,0,0.45);
     }
-    .btn-tab.active{
-      background: rgba(255,255,255,0.10);
+    .brand{
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      letter-spacing: -0.02em;
     }
   </style>
 </head>
@@ -44,29 +34,33 @@
 <body class="min-h-screen">
   <div class="max-w-xl mx-auto px-4 pb-10">
 
-    <!-- Header -->
+    <!-- HEADER -->
     <header class="pt-6 pb-4">
-      <div class="card">
+      <div class="rounded-3xl border border-zinc-800 bg-white/5 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
         <div class="p-5 flex items-center justify-between gap-4">
-          <div class="flex items-center gap-4">
-            <img src="/static/logo.jpeg" class="h-12 w-12 rounded-2xl border border-white/10 object-cover" alt="logo">
-            <div>
-              <div class="text-[11px] tracking-[0.25em] text-zinc-300/80">STUDIO</div>
-              <div class="text-3xl font-semibold leading-tight mt-1">Angie’s Color</div>
-            </div>
+          <div class="min-w-0">
+            <div class="text-[11px] tracking-[0.25em] text-zinc-300/80">STUDIO</div>
+            <div class="brand text-xl font-extrabold leading-tight mt-1 truncate">Angie’s Color</div>
           </div>
-        </div>
 
-        <div class="px-5 pb-5 flex gap-2 justify-between">
-          <a class="btn-tab {% if request.url.path.startswith('/turnos') %}active{% endif %}" href="/turnos">Turnos</a>
-          <a class="btn-tab {% if request.url.path.startswith('/clientes') %}active{% endif %}" href="/clientes">Clientes</a>
-          <a class="btn-tab {% if request.url.path.startswith('/admin') %}active{% endif %}" href="/admin">Admin</a>
-          <a class="btn-tab {% if request.url.path.startswith('/compras') %}active{% endif %}" href="/compras">Compras</a>
+          <div class="flex items-center gap-3 shrink-0">
+            <img src="/static/logo.jpeg" alt="Logo" class="h-14 w-14 rounded-2xl object-cover border border-zinc-800"/>
+          </div>
         </div>
       </div>
     </header>
 
+    <!-- NAV -->
+    <nav class="card p-2 mb-4">
+      <div class="grid grid-cols-3 gap-2">
+        <a href="/turnos" class="px-3 py-3 rounded-2xl bg-white/5 border border-zinc-800 text-center font-bold">Turnos</a>
+        <a href="/clientes" class="px-3 py-3 rounded-2xl bg-white/5 border border-zinc-800 text-center font-bold">Clientes</a>
+        <a href="/admin" class="px-3 py-3 rounded-2xl bg-white/5 border border-zinc-800 text-center font-bold">Admin</a>
+      </div>
+    </nav>
+
     {% block content %}{% endblock %}
+
   </div>
 </body>
 </html>
