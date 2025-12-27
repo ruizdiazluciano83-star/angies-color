@@ -1,61 +1,85 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Angie’s Color</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
     :root{
-      --gold: #d4af37;
+      --bg0:#050607;
+      --bg1:#0b0d10;
+      --card:rgba(255,255,255,0.06);
+      --stroke:rgba(255,255,255,0.10);
+      --gold:#f5c542;
     }
     body{
-      background: radial-gradient(1200px 700px at 20% 0%, rgba(212,175,55,0.18), transparent 60%),
-                  radial-gradient(900px 700px at 90% 10%, rgba(96,165,250,0.14), transparent 55%),
-                  #07090f;
-      color: #fff;
+      background: radial-gradient(1200px 600px at 50% -120px, rgba(245,197,66,.25), transparent 60%),
+                  radial-gradient(900px 400px at 15% 10%, rgba(59,130,246,.12), transparent 55%),
+                  linear-gradient(180deg, var(--bg0), var(--bg1));
+      color:#fff;
+      min-height:100vh;
     }
+    .shell{max-width:980px;margin:0 auto;padding:18px 14px 70px;}
     .card{
+      background: var(--card);
+      border: 1px solid var(--stroke);
       border-radius: 24px;
-      border: 1px solid rgba(63,63,70,0.9);
-      background: rgba(255,255,255,0.04);
       backdrop-filter: blur(18px);
-      box-shadow: 0 18px 55px rgba(0,0,0,0.45);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 18px 55px rgba(0,0,0,.35);
+    }
+    .pill{
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,0.04);
+      border-radius: 999px;
+      padding:10px 16px;
+      font-weight:800;
+    }
+    .pill.active{
+      background: rgba(245,197,66,.18);
+      border-color: rgba(245,197,66,.35);
     }
     .brand{
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      font-weight: 900;
       letter-spacing: -0.02em;
     }
   </style>
 </head>
 
-<body class="min-h-screen">
-  <div class="max-w-xl mx-auto px-4 pb-10">
+<body>
+  <div class="shell">
 
     <!-- HEADER -->
     <header class="pt-6 pb-4">
-      <div class="rounded-3xl border border-zinc-800 bg-white/5 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-        <div class="p-5 flex items-center justify-between gap-4">
-          <div class="min-w-0">
-            <div class="text-[11px] tracking-[0.25em] text-zinc-300/80">STUDIO</div>
-            <div class="brand text-xl font-extrabold leading-tight mt-1 truncate">Angie’s Color</div>
+      <div class="card">
+        <div class="p-5 flex items-center gap-4">
+          <!-- LOGO IZQUIERDA (MAS GRANDE) -->
+          <div class="shrink-0">
+            <div class="h-14 w-14 rounded-2xl border border-zinc-700 bg-black/30 overflow-hidden flex items-center justify-center">
+              <img src="/static/logo.jpeg" alt="Logo" class="h-full w-full object-cover">
+            </div>
           </div>
 
-          <div class="flex items-center gap-3 shrink-0">
-            <img src="/static/logo.jpeg" alt="Logo" class="h-14 w-14 rounded-2xl object-cover border border-zinc-800"/>
+          <!-- TEXTO DERECHA (MAS CHICO) -->
+          <div class="min-w-0">
+            <div class="text-[11px] tracking-[0.25em] text-zinc-300/80">STUDIO</div>
+            <div class="brand text-2xl leading-tight mt-1">Angie’s Color</div>
           </div>
+
+          <div class="ml-auto"></div>
         </div>
       </div>
     </header>
 
     <!-- NAV -->
-    <nav class="card p-2 mb-4">
-      <div class="grid grid-cols-3 gap-2">
-        <a href="/turnos" class="px-3 py-3 rounded-2xl bg-white/5 border border-zinc-800 text-center font-bold">Turnos</a>
-        <a href="/clientes" class="px-3 py-3 rounded-2xl bg-white/5 border border-zinc-800 text-center font-bold">Clientes</a>
-        <a href="/admin" class="px-3 py-3 rounded-2xl bg-white/5 border border-zinc-800 text-center font-bold">Admin</a>
+    <nav class="mb-6">
+      <div class="card p-3 flex flex-wrap gap-2 justify-center">
+        <a href="/turnos" class="pill {% if request.url.path.startswith('/turnos') %}active{% endif %}">Turnos</a>
+        <a href="/clientes" class="pill {% if request.url.path.startswith('/clientes') %}active{% endif %}">Clientes</a>
+        <a href="/admin" class="pill {% if request.url.path.startswith('/admin') %}active{% endif %}">Admin</a>
       </div>
     </nav>
 
