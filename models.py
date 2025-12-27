@@ -1,58 +1,33 @@
-from sqlalchemy import Column, Integer, String, Date, Time, ForeignKey, Boolean, Text, DateTime
+from sqlalchemy import Column, Integer, String, Date, Time, Boolean, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from db import Base
 
 class Specialty(Base):
     __tablename__ = "specialties"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    duration_min = Column(Integer, default=0)
-    color_hex = Column(String, default="#16a34a", nullable=False)
-
-    appointments = relationship("Appointment", back_populates="specialty")
-
+    name = Column(String, nullable=False, unique=True)
+    color_hex = Column(String, nullable=False, default="#F5C542")
 
 class Staff(Base):
     __tablename__ = "staff"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-
-    appointments = relationship("Appointment", back_populates="staff")
-
+    name = Column(String, nullable=False, unique=True)
 
 class Salon(Base):
     __tablename__ = "salons"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False, unique=True)
-
-    appointments = relationship("Appointment", back_populates="salon")
-
+    name = Column(String, nullable=False, unique=True)  # "Salon 1", "Salon 2"
 
 class Client(Base):
     __tablename__ = "clients"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    phone = Column(String, default="")
-    email = Column(String, default="")
-    notes = Column(Text, default="")
-
-    # ✅ última visita (se actualiza al crear/editar turnos)
-    last_visit_date = Column(Date, nullable=True)
+    phone = Column(String, nullable=True, default="")
+    email = Column(String, nullable=True, default="")
+    notes = Column(Text, nullable=True, default="")      # notas generales
+    last_visit = Column(Date, nullable=True)            # última visita
 
     appointments = relationship("Appointment", back_populates="client")
-    note_items = relationship("ClientNote", back_populates="client", cascade="all, delete-orphan")
-
-
-class ClientNote(Base):
-    __tablename__ = "client_notes"
-    id = Column(Integer, primary_key=True, index=True)
-    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    text = Column(Text, nullable=False)
-
-    client = relationship("Client", back_populates="note_items")
-
 
 class Appointment(Base):
     __tablename__ = "appointments"
@@ -60,25 +35,21 @@ class Appointment(Base):
 
     date = Column(Date, nullable=False)
     start_time = Column(Time, nullable=False)
-    duration_min = Column(Integer, nullable=False)
+    duration_min = Column(Integer, nullable=False, default=30)
 
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
-    specialty_id = Column(Integer, ForeignKey("specialties.id"), nullable=False)
+    specialty_id = Column(Integer, ForeignKey("specialties.id"), nullable=True)
+    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=True)
+    salon_id = Column(Integer, ForeignKey("salons.id"), nullable=True)
 
-    # ✅ ahora son obligatorios operativamente
-    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=False)
-    salon_id = Column(Integer, ForeignKey("salons.id"), nullable=False)
+    deposit_paid = Column(Boolean, nullable=False, default=False)
+    deposit_amount = Column(Integer, nullable=False, default=0)
 
-    notes = Column(Text, default="")
-    status = Column(String, default="CONFIRMADO")
+    notes = Column(Text, nullable=True, default="")     # notas del turno
 
-    deposit_paid = Column(Boolean, default=False)
-    deposit_amount = Column(Integer, default=0)
-
-    reminder_sent = Column(Boolean, default=False)
-    reminder_sent_at = Column(DateTime, nullable=True)
+    status = Column(String, nullable=False, default="ACTIVO")  # ACTIVO / CANCELADO
 
     client = relationship("Client", back_populates="appointments")
-    specialty = relationship("Specialty", back_populates="appointments")
-    staff = relationship("Staff", back_populates="appointments")
-    salon = relationship("Salon", back_populates="appointments")
+    specialty = relationship("Specialty")
+    staff = relationship("Staff")
+    salon = relationship("Salon")

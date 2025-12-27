@@ -1,105 +1,65 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="mb-3">
+<div class="mb-4">
   <div class="text-zinc-400 text-[11px] tracking-widest mb-1">ADMIN</div>
-  <h2 class="text-lg font-semibold">Configuración</h2>
-  {% if error %}
-    <div class="mt-2 text-sm font-semibold text-red-300">{{ error }}</div>
-  {% endif %}
+  <div class="text-2xl font-semibold">Configuración</div>
 </div>
 
-<!-- ESPECIALIDADES -->
-<div class="rounded-3xl border border-zinc-800 bg-white/5 backdrop-blur-xl p-4 mb-4">
-  <div class="text-sm font-semibold text-zinc-200 mb-3">Especialidades</div>
+<div class="grid gap-4">
 
-  <form method="post" action="/admin/especialidades/nueva" class="space-y-2">
-    <input name="name" placeholder="Ej: Balayage" required
-      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+  <div class="card p-4">
+    <div class="text-xl font-bold mb-3">Especialidades</div>
 
-    <label class="block text-xs text-zinc-400">Color</label>
-    <input type="color" name="color_hex" value="#16a34a"
-      class="w-full h-12 rounded-2xl bg-zinc-900/60 border border-zinc-800 p-2">
+    <form method="post" action="/admin/especialidades/nueva" class="space-y-3 mb-4">
+      <input name="name" placeholder="Ej: Balayage"
+             class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white" required>
 
-    <button type="submit"
-      class="w-full py-3 rounded-2xl text-sm font-semibold text-zinc-900"
-      style="background: var(--gold);">
-      Crear especialidad
-    </button>
-  </form>
+      <input name="color_hex" type="color" value="#F5C542"
+             class="w-full h-12 rounded-2xl bg-black/30 border border-zinc-800">
 
-  <div class="mt-4 space-y-2">
+      <button class="w-full py-3 rounded-2xl font-extrabold text-zinc-900" style="background: var(--gold);">
+        Crear especialidad
+      </button>
+    </form>
+
     {% for s in specialties %}
-      <div class="rounded-2xl border border-zinc-800 bg-zinc-950/30 p-3">
-        <form method="post" action="/admin/especialidades/{{ s.id }}/editar" class="flex items-center gap-2">
-          <input name="name" value="{{ s.name }}" required
-            class="flex-1 px-3 py-2 rounded-xl bg-zinc-900/60 border border-zinc-800 text-sm">
-
-          <input type="color" name="color_hex" value="{{ s.color_hex }}"
-            class="w-14 h-10 rounded-xl bg-zinc-900/60 border border-zinc-800 p-1">
-
-          <button type="submit"
-            class="px-3 py-2 rounded-xl text-sm font-semibold"
-            style="background: var(--gold); color:#0b0b0b;">
-            Guardar
-          </button>
-        </form>
-
-        <form method="post" action="/admin/especialidades/{{ s.id }}/eliminar"
-              onsubmit="return confirm('¿Eliminar especialidad {{ s.name }}?');"
-              class="mt-2">
-          <button type="submit" class="w-full px-3 py-2 rounded-xl text-sm font-semibold bg-red-600/80 text-white">
+      <div class="flex items-center justify-between py-2 border-t border-zinc-800/70">
+        <div class="font-bold">
+          <span style="color: {{ s.color_hex }}">{{ s.name }}</span>
+        </div>
+        <form method="post" action="/admin/especialidades/{{ s.id }}/eliminar">
+          <button class="px-3 py-2 rounded-xl border border-zinc-800 bg-white/5 text-sm font-bold">
             Eliminar
           </button>
         </form>
       </div>
-    {% else %}
-      <div class="text-zinc-400 text-sm">No hay especialidades.</div>
     {% endfor %}
   </div>
-</div>
 
-<!-- STAFF -->
-<div class="rounded-3xl border border-zinc-800 bg-white/5 backdrop-blur-xl p-4">
-  <div class="text-sm font-semibold text-zinc-200 mb-3">Staff</div>
+  <div class="card p-4">
+    <div class="text-xl font-bold mb-3">Staff</div>
 
-  <form method="post" action="/admin/staff/nuevo" class="space-y-2">
-    <input name="name" placeholder="Ej: Angie" required
-      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+    <form method="post" action="/admin/staff/nuevo" class="space-y-3 mb-4">
+      <input name="name" placeholder="Ej: Angie"
+             class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white" required>
+      <button class="w-full py-3 rounded-2xl font-extrabold text-zinc-900" style="background: var(--gold);">
+        Crear staff
+      </button>
+    </form>
 
-    <button type="submit"
-      class="w-full py-3 rounded-2xl text-sm font-semibold text-zinc-900"
-      style="background: var(--gold);">
-      Crear staff
-    </button>
-  </form>
-
-  <div class="mt-4 space-y-2">
-    {% for p in staff %}
-      <div class="rounded-2xl border border-zinc-800 bg-zinc-950/30 p-3">
-        <form method="post" action="/admin/staff/{{ p.id }}/editar" class="flex items-center gap-2">
-          <input name="name" value="{{ p.name }}" required
-            class="flex-1 px-3 py-2 rounded-xl bg-zinc-900/60 border border-zinc-800 text-sm">
-
-          <button type="submit"
-            class="px-3 py-2 rounded-xl text-sm font-semibold"
-            style="background: var(--gold); color:#0b0b0b;">
-            Guardar
-          </button>
-        </form>
-
-        <form method="post" action="/admin/staff/{{ p.id }}/eliminar"
-              onsubmit="return confirm('¿Eliminar staff {{ p.name }}?');"
-              class="mt-2">
-          <button type="submit" class="w-full px-3 py-2 rounded-xl text-sm font-semibold bg-red-600/80 text-white">
+    {% for st in staff %}
+      <div class="flex items-center justify-between py-2 border-t border-zinc-800/70">
+        <div class="font-bold">{{ st.name }}</div>
+        <form method="post" action="/admin/staff/{{ st.id }}/eliminar">
+          <button class="px-3 py-2 rounded-xl border border-zinc-800 bg-white/5 text-sm font-bold">
             Eliminar
           </button>
         </form>
       </div>
-    {% else %}
-      <div class="text-zinc-400 text-sm">No hay staff.</div>
     {% endfor %}
   </div>
+
 </div>
 
 {% endblock %}

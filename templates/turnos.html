@@ -1,76 +1,157 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="flex items-center justify-between mb-3">
+<div class="flex items-center justify-between mb-4">
   <div>
     <div class="text-zinc-400 text-[11px] tracking-widest mb-1">AGENDA</div>
     <div class="text-2xl font-semibold">Turnos</div>
   </div>
 
   <a href="/turnos/nuevo?date_str={{ selected_date }}"
-     class="px-4 py-2 rounded-2xl font-semibold text-zinc-900 text-sm"
+     class="px-4 py-2 rounded-2xl font-bold text-zinc-900 text-sm"
      style="background: var(--gold);">
     + Agendar
   </a>
 </div>
 
-{% if staff_list and staff_list|length > 0 %}
-  <div class="flex gap-2 mb-4 overflow-x-auto pb-1">
-    {% for s in staff_list %}
-      <a href="/turnos?date_str={{ selected_date }}&staff_id={{ s.id }}"
-         class="px-4 py-2 rounded-2xl border border-zinc-800 text-sm font-semibold whitespace-nowrap
-         {% if s.id == staff_id %} bg-white/10 {% else %} bg-white/5 {% endif %}">
-        {{ s.name|upper }}
-      </a>
-    {% endfor %}
-  </div>
-{% endif %}
-
-<div class="rounded-2xl border border-zinc-800 bg-white/5 overflow-hidden mb-4">
-  <div class="flex items-center justify-between px-4 py-3">
-    <div class="font-semibold">{{ day_name }}</div>
-    <div class="text-zinc-300">{{ date_label }}</div>
-  </div>
+<!-- Filtros -->
+<div class="flex gap-2 mb-3 overflow-x-auto pb-1">
+  {% for s in staff_list %}
+    <a href="/turnos?date_str={{ selected_date }}&staff_id={{ s.id }}&salon_id={{ salon_id }}"
+       class="px-4 py-2 rounded-2xl border border-zinc-800 text-sm font-bold whitespace-nowrap {% if s.id==staff_id %}bg-white/10{% else %}bg-white/5{% endif %}">
+      {{ s.name|upper }}
+    </a>
+  {% endfor %}
 </div>
 
-<div class="rounded-3xl border border-zinc-800 bg-white/5 overflow-hidden">
+<div class="flex gap-2 mb-4 overflow-x-auto pb-1">
+  {% for sl in salon_list %}
+    <a href="/turnos?date_str={{ selected_date }}&staff_id={{ staff_id }}&salon_id={{ sl.id }}"
+       class="px-4 py-2 rounded-2xl border border-zinc-800 text-sm font-bold whitespace-nowrap {% if sl.id==salon_id %}bg-white/10{% else %}bg-white/5{% endif %}">
+      {{ sl.name|upper }}
+    </a>
+  {% endfor %}
+</div>
+
+<!-- Selector de fecha -->
+<div class="card mb-4 overflow-hidden">
+  <button id="openCalendar" class="w-full px-4 py-3 flex items-center justify-between">
+    <div class="font-bold">{{ day_name }}</div>
+    <div class="text-zinc-300">{{ date_label }}</div>
+  </button>
+
+  <div id="calendarBox" class="hidden px-4 pb-4"></div>
+</div>
+
+<!-- Grilla -->
+<div class="card overflow-hidden">
   {% for row in grid %}
     {% if row.state == "free" %}
       <a href="/turnos/nuevo?date_str={{ selected_date }}&time_str={{ row.time_str }}"
          class="block px-4 py-3 border-b border-zinc-800/70">
         <div class="flex items-center justify-between">
-          <div class="text-zinc-200 font-semibold">{{ row.time_str }} HS</div>
-          <div class="text-green-400 font-bold text-sm">LIBRE</div>
+          <div class="text-zinc-200 font-bold">{{ row.time_str }} HS</div>
+          <div class="text-green-400 font-extrabold text-sm">LIBRE</div>
         </div>
       </a>
+
     {% elif row.state == "blocked" %}
       <div class="px-4 py-3 border-b border-zinc-800/70 bg-red-900/20">
         <div class="flex items-center justify-between">
-          <div class="text-zinc-300 font-semibold">{{ row.time_str }} HS</div>
-          <div class="text-red-300 text-sm font-semibold">No disponible</div>
+          <div class="text-zinc-300 font-bold">{{ row.time_str }} HS</div>
+          <div class="text-red-300 text-sm font-bold">No disponible</div>
         </div>
       </div>
+
     {% else %}
       {% set a = row.appt %}
-      <div class="px-4 py-3 border-b border-zinc-800/70">
-        <div class="text-zinc-300 font-semibold">{{ row.time_str }} HS</div>
+      <a href="/turnos/{{ a.id }}/editar" class="block px-4 py-3 border-b border-zinc-800/70">
+        <div class="text-zinc-300 font-bold">{{ row.time_str }} HS</div>
 
-        <div class="mt-1 text-white font-semibold">
-          {{ a.client.name if a.client else "CLIENTE" }} ·
-          <span style="color: {{ a.specialty.color_hex if a.specialty else '#F5C542' }};">
+        <div class="mt-1 text-white font-bold">
+          {{ a.client.name }} ·
+          <span style="color: {{ a.specialty.color_hex if a.specialty else '#F2CC7A' }};">
             {{ a.specialty.name if a.specialty else "SERVICIO" }}
           </span>
           {% if a.deposit_paid %}
-            <span class="ml-2 font-semibold" style="color:#38bdf8;">Seña ${{ a.deposit_amount }}</span>
+            <span class="ml-2 font-bold" style="color:#38bdf8;">Seña ${{ a.deposit_amount }}</span>
           {% endif %}
         </div>
 
         <div class="text-zinc-400 text-sm mt-1">
           Duración {{ a.duration_min }}m
         </div>
-      </div>
+      </a>
     {% endif %}
   {% endfor %}
 </div>
+
+<script>
+  const selectedDate = "{{ selected_date }}";
+  const daysWith = new Set({{ days_with_turnos | tojson }});
+
+  const openBtn = document.getElementById("openCalendar");
+  const box = document.getElementById("calendarBox");
+
+  let current = new Date(selectedDate + "T00:00:00");
+
+  function pad(n){ return (n<10? "0":"") + n; }
+  function toYMD(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+
+  function renderCalendar(){
+    const year = current.getFullYear();
+    const month = current.getMonth();
+
+    const first = new Date(year, month, 1);
+    const last = new Date(year, month+1, 0);
+
+    const startWeekDay = (first.getDay() + 6) % 7; // lunes=0
+    const totalDays = last.getDate();
+
+    const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+    let html = `
+      <div class="flex items-center justify-between mb-3">
+        <button id="prevM" class="px-3 py-2 rounded-xl border border-zinc-800 bg-white/5 font-bold">‹</button>
+        <div class="font-bold">${monthNames[month]} ${year}</div>
+        <button id="nextM" class="px-3 py-2 rounded-xl border border-zinc-800 bg-white/5 font-bold">›</button>
+      </div>
+      <div class="grid grid-cols-7 gap-2 text-[12px] text-zinc-400 mb-2">
+        <div>Lu</div><div>Ma</div><div>Mi</div><div>Ju</div><div>Vi</div><div>Sa</div><div>Do</div>
+      </div>
+      <div class="grid grid-cols-7 gap-2">
+    `;
+
+    for(let i=0;i<startWeekDay;i++){
+      html += `<div></div>`;
+    }
+
+    for(let day=1; day<=totalDays; day++){
+      const d = new Date(year, month, day);
+      const ymd = toYMD(d);
+      const has = daysWith.has(ymd);
+      const isSel = (ymd === selectedDate);
+
+      html += `
+        <a href="/turnos?date_str=${ymd}"
+           class="text-center py-2 rounded-xl border border-zinc-800 font-bold
+           ${isSel ? 'bg-white/10' : 'bg-white/5'}">
+           <span class="${has ? 'text-green-400' : 'text-zinc-200'}">${day}</span>
+        </a>
+      `;
+    }
+
+    html += `</div>`;
+    box.innerHTML = html;
+
+    document.getElementById("prevM").onclick = () => { current = new Date(year, month-1, 1); renderCalendar(); };
+    document.getElementById("nextM").onclick = () => { current = new Date(year, month+1, 1); renderCalendar(); };
+  }
+
+  openBtn.addEventListener("click", ()=>{
+    box.classList.toggle("hidden");
+    if(!box.classList.contains("hidden")) renderCalendar();
+  });
+</script>
 
 {% endblock %}

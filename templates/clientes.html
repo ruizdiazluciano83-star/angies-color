@@ -1,134 +1,55 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="flex items-center justify-between mb-3">
+<div class="flex items-center justify-between mb-4">
   <div>
     <div class="text-zinc-400 text-[11px] tracking-widest mb-1">FICHA</div>
-    <h2 class="text-lg font-semibold">Clientes</h2>
+    <div class="text-2xl font-semibold">Clientes</div>
   </div>
 
-  <button id="openNewClient"
-          class="px-4 py-2 rounded-2xl font-semibold text-zinc-900 text-sm"
-          style="background: var(--gold);">
+  <a href="#nuevo" class="px-4 py-2 rounded-2xl font-bold text-zinc-900 text-sm" style="background: var(--gold);">
     + Nuevo cliente
-  </button>
+  </a>
 </div>
 
-<!-- Buscador -->
-<div class="mb-3">
-  <input id="searchClient" type="text" placeholder="Buscar por nombre o teléfono…"
-         class="w-full px-4 py-4 rounded-3xl bg-zinc-900/60 border border-zinc-700 text-white placeholder:text-zinc-500">
-</div>
+<form method="get" action="/clientes" class="card p-4 mb-4">
+  <input name="q" value="{{ q }}" placeholder="Buscar por nombre o teléfono..."
+         class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+</form>
 
-<!-- Lista -->
-<div id="clientsList"
-     class="rounded-3xl border border-zinc-800 bg-white/5 backdrop-blur-xl overflow-hidden">
-  {% if clients and clients|length > 0 %}
+<div class="card overflow-hidden">
+  {% if clients|length == 0 %}
+    <div class="p-4 text-zinc-400">No hay clientes cargados todavía.</div>
+  {% else %}
     {% for c in clients %}
-      <!-- Cambiá el href si tu ficha tiene otra ruta -->
-      <a href="/clientes/{{ c.id }}"
-         class="clientRow block px-4 py-4 border-b border-zinc-800 hover:bg-white/5 transition"
-         data-name="{{ (c.name or '')|lower }}"
-         data-phone="{{ (c.phone or '')|lower }}">
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="font-semibold text-zinc-100">{{ c.name }}</div>
-            <div class="text-sm text-zinc-400">{{ c.phone or "—" }}</div>
-          </div>
-          <div class="text-zinc-500">›</div>
+      <a href="/clientes/{{ c.id }}" class="block px-4 py-3 border-b border-zinc-800/70">
+        <div class="font-bold">{{ c.name }}</div>
+        <div class="text-zinc-400 text-sm">
+          {{ c.phone if c.phone else "—" }}
+          · Última visita: {{ c.last_visit.strftime("%d/%m/%Y") if c.last_visit else "—" }}
         </div>
       </a>
     {% endfor %}
-  {% else %}
-    <div class="px-4 py-6 text-zinc-400 text-sm">
-      No hay clientes cargados todavía.
-    </div>
   {% endif %}
 </div>
 
-<!-- Modal nuevo cliente -->
-<div id="newClientModal" class="fixed inset-0 hidden items-end justify-center z-50">
-  <div id="modalBg" class="absolute inset-0 bg-black/70"></div>
+<div id="nuevo" class="mt-6 card p-4">
+  <div class="text-xl font-bold mb-3">Nuevo cliente</div>
 
-  <div class="relative w-full max-w-md mx-auto rounded-t-3xl border border-zinc-800 bg-zinc-950/95 backdrop-blur-xl p-4">
-    <div class="flex items-center justify-between mb-2">
-      <div>
-        <div class="text-zinc-400 text-[11px] tracking-widest">NUEVO</div>
-        <div class="text-lg font-semibold">Crear cliente</div>
-      </div>
-      <button id="closeNewClient"
-              class="h-10 w-10 rounded-2xl border border-zinc-800 bg-white/5 text-zinc-200">
-        ✕
-      </button>
-    </div>
+  <form method="post" action="/clientes/nuevo" class="space-y-3">
+    <input name="name" placeholder="Nombre y apellido"
+           class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white" required>
+    <input name="phone" placeholder="Teléfono"
+           class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+    <input name="email" placeholder="Email"
+           class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+    <textarea name="notes" rows="3" placeholder="Notas generales"
+              class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white"></textarea>
 
-    <form method="post" action="/clientes/nuevo" class="space-y-3">
-      <div>
-        <label class="text-xs text-zinc-400">Nombre</label>
-        <input name="name" type="text" required
-               class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-      </div>
-
-      <div>
-        <label class="text-xs text-zinc-400">Teléfono</label>
-        <input name="phone" type="text"
-               placeholder="Ej: 11xxxxxxxx (como te lo pasan)"
-               class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white placeholder:text-zinc-600">
-      </div>
-
-      <div>
-        <label class="text-xs text-zinc-400">Email (opcional)</label>
-        <input name="email" type="email"
-               class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-      </div>
-
-      <div>
-        <label class="text-xs text-zinc-400">Notas / comentarios</label>
-        <textarea name="notes" rows="3"
-                  class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white"></textarea>
-      </div>
-
-      <button type="submit"
-              class="w-full px-4 py-3 rounded-2xl font-semibold text-zinc-900"
-              style="background: var(--gold);">
-        Guardar cliente
-      </button>
-    </form>
-  </div>
+    <button class="w-full py-3 rounded-2xl font-extrabold text-zinc-900" style="background: var(--gold);">
+      Guardar cliente
+    </button>
+  </form>
 </div>
-
-<script>
-  // Buscador
-  const search = document.getElementById("searchClient");
-  const rows = document.querySelectorAll(".clientRow");
-  search?.addEventListener("input", () => {
-    const q = (search.value || "").toLowerCase().trim();
-    rows.forEach(r => {
-      const name = r.dataset.name || "";
-      const phone = r.dataset.phone || "";
-      const ok = !q || name.includes(q) || phone.includes(q);
-      r.style.display = ok ? "block" : "none";
-    });
-  });
-
-  // Modal
-  const modal = document.getElementById("newClientModal");
-  const openBtn = document.getElementById("openNewClient");
-  const closeBtn = document.getElementById("closeNewClient");
-  const bg = document.getElementById("modalBg");
-
-  function openModal() {
-    modal.classList.remove("hidden");
-    modal.classList.add("flex");
-  }
-  function closeModal() {
-    modal.classList.add("hidden");
-    modal.classList.remove("flex");
-  }
-
-  openBtn?.addEventListener("click", openModal);
-  closeBtn?.addEventListener("click", closeModal);
-  bg?.addEventListener("click", closeModal);
-</script>
 
 {% endblock %}

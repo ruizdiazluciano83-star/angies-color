@@ -1,115 +1,99 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="mb-3">
-  <div class="text-zinc-400 text-[11px] tracking-widest mb-1">TURNO</div>
-  <h2 class="text-lg font-semibold">Editar turno</h2>
+<div class="mb-4">
+  <div class="text-zinc-400 text-[11px] tracking-widest mb-1">AGENDA</div>
+  <div class="text-2xl font-semibold">Editar turno</div>
 </div>
 
-{% if error %}
-  <div class="mb-3 px-4 py-3 rounded-2xl border border-red-700 bg-red-900/20 text-red-200 text-sm">
-    {{ error }}
-  </div>
-{% endif %}
+<form method="post" action="/turnos/{{ a.id }}/editar" class="card p-4 space-y-4">
 
-<form method="post" action="/turnos/{{ appt.id }}/editar" class="space-y-3">
-  <div class="rounded-3xl border border-zinc-800 bg-white/5 backdrop-blur-xl p-4 space-y-3">
-
-    <div class="grid grid-cols-2 gap-2">
-      <div>
-        <label class="text-xs text-zinc-400">Fecha</label>
-        <input name="fecha" type="date" value="{{ appt.date.strftime('%Y-%m-%d') }}" required
-               class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-      </div>
-
-      <div>
-        <label class="text-xs text-zinc-400">Hora</label>
-        <input name="hora" type="time" value="{{ appt.start_time.strftime('%H:%M') }}" required
-               class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-      </div>
-    </div>
-
+  <div class="grid grid-cols-2 gap-2">
     <div>
-      <label class="text-xs text-zinc-400">Duración</label>
-      <select name="duration_min" required
-              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-        {% for m in [15,30,45,60,75,90,105,120,135,150,165,180,195,210,225,240] %}
-          <option value="{{ m }}" {% if appt.duration_min == m %}selected{% endif %}>
-            {{ "%02d"|format(m//60) }}:{{ "%02d"|format(m%60) }}
-          </option>
-        {% endfor %}
-      </select>
+      <div class="text-sm font-bold mb-2">Fecha</div>
+      <input name="date_str" value="{{ a.date.strftime('%Y-%m-%d') }}" type="date"
+             class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
     </div>
-
     <div>
-      <label class="text-xs text-zinc-400">Cliente</label>
-      <select name="client_id" required
-              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-        {% for c in clients %}
-          <option value="{{ c.id }}" {% if c.id == appt.client_id %}selected{% endif %}>{{ c.name }}</option>
-        {% endfor %}
-      </select>
+      <div class="text-sm font-bold mb-2">Hora</div>
+      <input name="time_str" value="{{ a.start_time.strftime('%H:%M') }}" type="time"
+             class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
     </div>
-
-    <div>
-      <label class="text-xs text-zinc-400">Trabajo</label>
-      <select name="specialty_id" required
-              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-        {% for sp in specialties %}
-          <option value="{{ sp.id }}" {% if sp.id == appt.specialty_id %}selected{% endif %}>{{ sp.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="grid grid-cols-2 gap-2">
-      <div>
-        <label class="text-xs text-zinc-400">Staff</label>
-        <select name="staff_id" required
-                class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-          {% for s in staff_list %}
-            <option value="{{ s.id }}" {% if s.id == appt.staff_id %}selected{% endif %}>{{ s.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div>
-        <label class="text-xs text-zinc-400">Salón</label>
-        <select name="salon_id" required
-                class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-          {% for sa in salons %}
-            <option value="{{ sa.id }}" {% if sa.id == appt.salon_id %}selected{% endif %}>{{ sa.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-
-    <div class="flex items-center gap-3">
-      <input id="deposit_paid" name="deposit_paid" type="checkbox" class="w-5 h-5" {% if appt.deposit_paid %}checked{% endif %}>
-      <label for="deposit_paid" class="text-sm text-zinc-200 font-semibold">Dejó seña</label>
-      <input name="deposit_amount" type="number" value="{{ appt.deposit_amount or 0 }}" min="0"
-             class="ml-auto w-32 px-3 py-2 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-    </div>
-
-    <div>
-      <label class="text-xs text-zinc-400">Estado</label>
-      <select name="status"
-              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-        <option value="CONFIRMADO" {% if appt.status=="CONFIRMADO" %}selected{% endif %}>Confirmado</option>
-        <option value="CANCELADO" {% if appt.status=="CANCELADO" %}selected{% endif %}>Cancelado</option>
-      </select>
-    </div>
-
   </div>
 
-  <button type="submit" class="w-full px-4 py-3 rounded-2xl font-semibold text-zinc-900"
-          style="background: var(--gold);">
+  <div>
+    <div class="text-sm font-bold mb-2">Cliente</div>
+    <select name="client_id" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      {% for c in clients %}
+        <option value="{{ c.id }}" {% if c.id==a.client_id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <div class="text-sm font-bold mb-2">Servicio</div>
+    <select name="specialty_id" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      <option value="0">—</option>
+      {% for s in specialties %}
+        <option value="{{ s.id }}" {% if a.specialty_id==s.id %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <div class="text-sm font-bold mb-2">Duración</div>
+    <select name="duration_min" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      {% for m in range(15, 241, 15) %}
+        <option value="{{ m }}" {% if a.duration_min==m %}selected{% endif %}>
+          {{ "%02d:%02d"|format(m//60, m%60) }} hs
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <div class="text-sm font-bold mb-2">Staff</div>
+    <select name="staff_id" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      <option value="0">—</option>
+      {% for st in staff %}
+        <option value="{{ st.id }}" {% if a.staff_id==st.id %}selected{% endif %}>{{ st.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <div class="text-sm font-bold mb-2">Salón</div>
+    <select name="salon_id" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      <option value="0">—</option>
+      {% for sl in salons %}
+        <option value="{{ sl.id }}" {% if a.salon_id==sl.id %}selected{% endif %}>{{ sl.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="border-t border-zinc-800 pt-4">
+    <label class="flex items-center gap-2 font-bold">
+      <input type="checkbox" name="deposit_paid" class="scale-125" {% if a.deposit_paid %}checked{% endif %}>
+      Dejó seña
+    </label>
+    <input name="deposit_amount" type="number" value="{{ a.deposit_amount }}"
+           class="mt-2 w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+  </div>
+
+  <div>
+    <div class="text-sm font-bold mb-2">Notas del turno</div>
+    <textarea name="notes" rows="4"
+              class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">{{ a.notes }}</textarea>
+  </div>
+
+  <button class="w-full py-3 rounded-2xl font-extrabold text-zinc-900" style="background: var(--gold);">
     Guardar cambios
   </button>
 </form>
 
-<form method="post" action="/turnos/{{ appt.id }}/eliminar" class="mt-3">
-  <button type="submit" class="w-full px-4 py-3 rounded-2xl font-semibold border border-red-700 bg-red-900/20 text-red-200">
-    Eliminar turno
+<form method="post" action="/turnos/{{ a.id }}/cancelar" class="mt-3">
+  <button class="w-full py-3 rounded-2xl font-extrabold border border-red-700 text-red-200 bg-red-900/20">
+    Cancelar turno
   </button>
 </form>
 

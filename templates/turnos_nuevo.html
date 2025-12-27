@@ -1,135 +1,103 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="mb-3">
-  <div class="text-zinc-400 text-[11px] tracking-widest mb-1">AGENDAR</div>
-  <h2 class="text-lg font-semibold">Nuevo turno</h2>
+<div class="mb-4">
+  <div class="text-zinc-400 text-[11px] tracking-widest mb-1">AGENDA</div>
+  <div class="text-2xl font-semibold">Nuevo turno</div>
+  <div class="text-zinc-400 text-sm mt-1">Completá fecha, hora, cliente, servicio, duración, staff y salón.</div>
 </div>
 
-{% if error %}
-  <div class="mb-3 px-4 py-3 rounded-2xl border border-red-700 bg-red-900/20 text-red-200 text-sm">
-    {{ error }}
-  </div>
-{% endif %}
+<form method="post" action="/turnos/nuevo" class="card p-4 space-y-4">
 
-<form method="post" action="/turnos/nuevo" class="space-y-3">
-  <div class="rounded-3xl border border-zinc-800 bg-white/5 backdrop-blur-xl p-4 space-y-3">
-
-    <div>
-      <label class="text-xs text-zinc-400">Fecha</label>
-      <input name="fecha" type="date" value="{{ pref_date }}" required
-             class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-    </div>
-
-    <div>
-      <label class="text-xs text-zinc-400">Hora</label>
-      <input name="hora" type="time" value="{{ pref_time }}" required
-             class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-    </div>
-
-    <div>
-      <label class="text-xs text-zinc-400">Duración</label>
-      <select name="duration_min" required
-              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-        {% for m in [15,30,45,60,75,90,105,120,135,150,165,180,195,210,225,240] %}
-          <option value="{{ m }}">
-            {{ "%02d"|format(m//60) }}:{{ "%02d"|format(m%60) }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div>
-      <label class="text-xs text-zinc-400">Cliente</label>
-      <select id="client_mode" name="client_mode"
-              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-        <option value="existing" selected>Elegir existente</option>
-        <option value="new">Crear nuevo</option>
-      </select>
-    </div>
-
-    <div id="existing_client">
-      <label class="text-xs text-zinc-400">Seleccionar cliente</label>
-      <select name="client_id"
-              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-        {% for c in clients %}
-          <option value="{{ c.id }}">{{ c.name }}{% if c.phone %} ({{ c.phone }}){% endif %}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div id="new_client" class="hidden space-y-2">
-      <div>
-        <label class="text-xs text-zinc-400">Nombre</label>
-        <input name="new_client_name" type="text"
-               class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-      </div>
-      <div>
-        <label class="text-xs text-zinc-400">Teléfono (como te lo pasan)</label>
-        <input name="new_client_phone" type="text"
-               class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-      </div>
-    </div>
-
-    <div>
-      <label class="text-xs text-zinc-400">Trabajo</label>
-      <select name="specialty_id" required
-              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-        {% for sp in specialties %}
-          <option value="{{ sp.id }}">{{ sp.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div>
-      <label class="text-xs text-zinc-400">Staff</label>
-      <select name="staff_id" required
-              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-        {% for s in staff_list %}
-          <option value="{{ s.id }}" {% if s.id == pref_staff_id %}selected{% endif %}>{{ s.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div>
-      <label class="text-xs text-zinc-400">Salón</label>
-      <select name="salon_id" required
-              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
-        {% for sa in salons %}
-          <option value="{{ sa.id }}">{{ sa.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="flex items-center gap-3">
-      <input id="deposit_paid" name="deposit_paid" type="checkbox" class="w-5 h-5">
-      <label for="deposit_paid" class="text-sm text-zinc-200 font-semibold">Dejó seña</label>
-      <input id="deposit_amount" name="deposit_amount" type="number" value="0" min="0"
-             class="ml-auto w-32 px-3 py-2 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white"
-             placeholder="$">
-    </div>
-
+  <div>
+    <div class="text-sm font-bold mb-2">Fecha</div>
+    <input name="date_str" value="{{ date_str }}" type="date"
+           class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
   </div>
 
-  <button type="submit" class="w-full px-4 py-3 rounded-2xl font-semibold text-zinc-900"
+  <div>
+    <div class="text-sm font-bold mb-2">Hora</div>
+    <input name="time_str" value="{{ time_str }}" type="time"
+           class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+  </div>
+
+  <div>
+    <div class="text-sm font-bold mb-2">Cliente</div>
+
+    <select name="client_id"
+            class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      <option value="0">+ Crear nuevo cliente</option>
+      {% for c in clients %}
+        <option value="{{ c.id }}">{{ c.name }} {% if c.phone %}({{ c.phone }}){% endif %}</option>
+      {% endfor %}
+    </select>
+
+    <div class="mt-3 grid grid-cols-1 gap-2">
+      <input name="new_client_name" placeholder="Nombre y apellido (si creás nuevo)"
+             class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      <input name="new_client_phone" placeholder="Teléfono (solo 11xxxxxxx)"
+             class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+    </div>
+  </div>
+
+  <div>
+    <div class="text-sm font-bold mb-2">Servicio</div>
+    <select name="specialty_id" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      <option value="0">— Seleccionar —</option>
+      {% for s in specialties %}
+        <option value="{{ s.id }}">{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <div class="text-sm font-bold mb-2">Duración</div>
+    <select name="duration_min" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      {% for m in range(15, 241, 15) %}
+        <option value="{{ m }}">{{ "%02d:%02d"|format(m//60, m%60) }} hs</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <div class="text-sm font-bold mb-2">Staff</div>
+    <select name="staff_id" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      <option value="0">— Seleccionar —</option>
+      {% for st in staff %}
+        <option value="{{ st.id }}">{{ st.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <div class="text-sm font-bold mb-2">Salón</div>
+    <select name="salon_id" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      {% for sl in salons %}
+        <option value="{{ sl.id }}">{{ sl.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="border-t border-zinc-800 pt-4">
+    <label class="flex items-center gap-2 font-bold">
+      <input type="checkbox" name="deposit_paid" class="scale-125">
+      Dejó seña
+    </label>
+    <input name="deposit_amount" type="number" placeholder="Monto seña ($)"
+           class="mt-2 w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+  </div>
+
+  <div>
+    <div class="text-sm font-bold mb-2">Notas del turno</div>
+    <textarea name="notes" rows="4" placeholder="Tintura, agua, tiempo, etc."
+              class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white"></textarea>
+  </div>
+
+  <button class="w-full py-3 rounded-2xl font-extrabold text-zinc-900"
           style="background: var(--gold);">
     Guardar turno
   </button>
-</form>
 
-<script>
-  const mode = document.getElementById("client_mode");
-  const existing = document.getElementById("existing_client");
-  const nw = document.getElementById("new_client");
-  mode.addEventListener("change", () => {
-    if (mode.value === "new") {
-      existing.classList.add("hidden");
-      nw.classList.remove("hidden");
-    } else {
-      nw.classList.add("hidden");
-      existing.classList.remove("hidden");
-    }
-  });
-</script>
+</form>
 
 {% endblock %}
