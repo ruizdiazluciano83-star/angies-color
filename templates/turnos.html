@@ -2,162 +2,164 @@
 {% block content %}
 
 <div class="mb-4">
+  <div class="text-zinc-400 text-[11px] tracking-widest mb-1">TURNOS</div>
+
+  <!-- CABECERA DIA / FECHA -->
   <div class="flex items-center justify-between">
-    <div class="text-zinc-400 text-[11px] tracking-widest">TURNOS</div>
-    <a href="/turnos/nuevo?date_str={{ selected_date }}&staff_id={{ staff_id }}&salon={{ salon }}"
-       class="px-4 py-2 rounded-2xl font-bold text-zinc-900 text-sm"
-       style="background: var(--gold);">
-      + Agendar
-    </a>
-  </div>
+    <div class="text-lg font-extrabold">{{ selected_weekday }}</div>
 
-  <div class="mt-3 flex items-center justify-between gap-3">
-    <div class="text-xl font-extrabold tracking-wide">{{ selected_weekday }}</div>
-    <div class="text-zinc-300 font-semibold">{{ selected_date_label }}</div>
-  </div>
-</div>
+    <div class="flex items-center gap-2">
+      <!-- Botón FECHA que abre el date picker -->
+      <button id="btnFecha"
+              class="px-3 py-2 rounded-2xl border border-zinc-800 bg-white/5 text-sm font-bold">
+        {{ selected_date_label }} · FECHA
+      </button>
 
-<!-- filtros -->
-<div class="card p-4 mb-4 space-y-3">
-  <div class="grid grid-cols-2 gap-3">
-    <div>
-      <div class="text-[11px] tracking-widest text-zinc-400 mb-2">STAFF</div>
-      <select id="staffSel" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
-        {% for st in staffs %}
-          <option value="{{ st.id }}" {% if st.id == staff_id %}selected{% endif %}>{{ st.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div>
-      <div class="text-[11px] tracking-widest text-zinc-400 mb-2">SALÓN</div>
-      <select id="salonSel" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
-        <option value="1" {% if salon == 1 %}selected{% endif %}>Salón 1</option>
-        <option value="2" {% if salon == 2 %}selected{% endif %}>Salón 2</option>
-      </select>
-    </div>
-  </div>
-
-  <div>
-    <div class="text-[11px] tracking-widest text-zinc-400 mb-2">CALENDARIO</div>
-    <input id="datePick" type="date" value="{{ selected_date }}"
-           class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
-    <div class="text-zinc-500 text-xs mt-2">
-      Los días con turnos se marcan con punto verde.
+      <!-- input date real (invisible) -->
+      <input id="datePicker" type="date" value="{{ selected_date }}" class="hidden" />
     </div>
   </div>
 </div>
 
-<!-- Lista de horarios -->
-<div class="card overflow-hidden">
-  {% for hh in slots %}
-    {% set a = by_time.get(hh) %}
-    <div class="slot-row px-4 py-3 border-b border-zinc-800/70 flex items-center justify-between gap-3"
-         data-hh="{{ hh }}">
+<!-- FILTROS: STAFF + SALON -->
+<div class="card p-4 mb-4">
+  <div class="flex items-center justify-between gap-3">
+    <!-- STAFF -->
+    <div class="flex gap-2 overflow-x-auto no-scrollbar">
+      {% for st in staffs %}
+        <a href="/turnos?date_str={{ selected_date }}&staff_id={{ st.id }}&salon={{ salon }}"
+           class="px-3 py-2 rounded-2xl border border-zinc-800 text-sm font-bold whitespace-nowrap
+                  {% if st.id == staff_id %} bg-white/10 {% else %} bg-white/5 {% endif %}">
+          {{ st.name }}
+        </a>
+      {% endfor %}
+    </div>
 
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="text-zinc-400 font-bold tabular-nums w-[74px]">{{ hh }}</div>
-
-        {% if a %}
-          <div class="min-w-0">
-            <div class="truncate font-extrabold text-white">
-              {{ a.client.name if a.client else "CLIENTE" }}
-            </div>
-            <div class="text-zinc-300 text-sm truncate">
-              <span class="font-bold"
-                    style="color: {{ a.specialty.color_hex if a.specialty else '#d4af37' }}">
-                {{ a.specialty.name if a.specialty else "TRABAJO" }}
-              </span>
-              · {{ a.duration_min }} min
-              {% if a.deposit_paid %}
-                · Seña ${{ a.deposit_amount }}
-              {% endif %}
-            </div>
-          </div>
-        {% else %}
-          <div class="text-emerald-300 font-extrabold">LIBRE</div>
-        {% endif %}
+    <!-- SALON -->
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="text-xs text-zinc-400 font-bold">SALÓN</div>
+      <div class="flex rounded-2xl border border-zinc-800 overflow-hidden">
+        <a href="/turnos?date_str={{ selected_date }}&staff_id={{ staff_id }}&salon=1"
+           class="px-3 py-2 text-sm font-extrabold {% if salon == 1 %} bg-white/10 {% else %} bg-white/5 {% endif %}">
+          1
+        </a>
+        <a href="/turnos?date_str={{ selected_date }}&staff_id={{ staff_id }}&salon=2"
+           class="px-3 py-2 text-sm font-extrabold {% if salon == 2 %} bg-white/10 {% else %} bg-white/5 {% endif %}">
+          2
+        </a>
       </div>
+    </div>
+  </div>
+</div>
 
-      <!-- WhatsApp / estado -->
-      <div class="shrink-0 flex items-center gap-2">
-        {% if a %}
-          <button class="wa-btn relative h-10 w-10 rounded-2xl border border-zinc-800 bg-white/5 flex items-center justify-center"
-                  data-appt="{{ a.id }}"
-                  title="Enviar WhatsApp">
-            <!-- icon whatsapp -->
-            <svg viewBox="0 0 32 32" class="h-5 w-5" fill="none">
-              <path fill="#22c55e" d="M16 3C9.373 3 4 8.148 4 14.5c0 2.44.83 4.69 2.244 6.52L5 29l7.21-1.89A12.8 12.8 0 0 0 16 26c6.627 0 12-5.148 12-11.5S22.627 3 16 3z"/>
-              <path fill="#0b1220" d="M12.5 10.5c.2-.4.4-.4.6-.4h.5c.2 0 .4 0 .6.4l1.1 2.6c.1.3.1.6-.1.8l-.7.7c-.2.2-.2.5 0 .7 1 1.8 2.5 3.2 4.4 4.1.2.1.5.1.7-.1l.8-.8c.2-.2.5-.2.8-.1l2.7 1c.4.1.4.4.4.6v.5c0 .2 0 .4-.4.6-.8.6-1.8.9-2.7.8-1.6-.1-3.2-.8-5-2.1-1.9-1.4-3.3-3-4.2-4.8-.7-1.4-1-2.6-.9-3.6.1-.8.4-1.6 1-2.2z"/>
-            </svg>
+<!-- LISTA HORARIA -->
+<div class="card overflow-hidden">
+  {% for hhmm in slots %}
+    {% set a = by_time.get(hhmm) %}
+    {% if a %}
+      <!-- OCUPADO -->
+      <div class="px-4 py-3 border-b border-zinc-800/70">
+        <div class="flex items-center justify-between gap-3">
+          <a href="/turnos/{{ a.id }}/editar"
+             class="flex-1 min-w-0">
+            <div class="flex items-center gap-3">
+              <div class="w-16 shrink-0 text-zinc-300 font-extrabold">{{ hhmm }}</div>
+
+              <div class="min-w-0">
+                <div class="font-extrabold truncate">{{ a.client.name if a.client else "—" }}</div>
+
+                <div class="text-sm text-zinc-300 flex items-center gap-2">
+                  <span class="font-bold"
+                        style="color: {{ a.specialty.color_hex if a.specialty else '#e5e7eb' }};">
+                    {{ a.specialty.name if a.specialty else "SIN TRABAJO" }}
+                  </span>
+
+                  <span class="text-zinc-500">·</span>
+
+                  <span class="text-zinc-300">
+                    {{ a.duration_min }} min
+                  </span>
+
+                  {% if a.deposit_paid %}
+                    <span class="text-zinc-500">·</span>
+                    <span class="text-zinc-300">
+                      Seña ${{ a.deposit_amount }}
+                    </span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </a>
+
+          <!-- WHATSAPP a la derecha -->
+          <button class="wa-btn relative shrink-0"
+                  data-appt-id="{{ a.id }}"
+                  title="Enviar recordatorio por WhatsApp">
+            <div class="h-10 w-10 rounded-2xl border border-zinc-800 bg-white/5 flex items-center justify-center">
+              <!-- icono whatsapp simple -->
+              <svg width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                <path d="M16 3C9.383 3 4 8.383 4 15c0 2.297.651 4.441 1.781 6.266L4 29l7.969-1.75A11.92 11.92 0 0 0 16 27c6.617 0 12-5.383 12-12S22.617 3 16 3Z"
+                      stroke="#22c55e" stroke-width="2"/>
+                <path d="M12.6 10.9c-.3-.7-.6-.7-.9-.7h-.8c-.2 0-.6.1-.9.5-.3.4-1.2 1.2-1.2 2.9 0 1.7 1.2 3.4 1.4 3.6.2.2 2.4 3.8 5.9 5.2 2.9 1.2 3.5 1 4.1.9.6-.1 2-0.8 2.3-1.6.3-.8.3-1.5.2-1.6-.1-.1-.3-.2-.7-.4-.4-.2-2.3-1.1-2.7-1.2-.4-.1-.7-.2-1 .2-.3.4-1.1 1.2-1.3 1.4-.2.2-.4.3-.8.1-.4-.2-1.7-.6-3.2-2-1.2-1.1-2-2.4-2.2-2.8-.2-.4 0-.6.2-.8.2-.2.4-.4.6-.6.2-.2.3-.4.4-.7.1-.3 0-.6-.1-.8-.1-.2-.9-2.2-1.2-3Z"
+                      fill="#22c55e"/>
+              </svg>
+            </div>
 
             {% if a.wa_sent %}
-            <!-- tilde celeste encima -->
-            <span class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-sky-400 text-black flex items-center justify-center text-[12px] font-extrabold">
-              ✓
-            </span>
+              <!-- tilde celeste arriba a la derecha -->
+              <div class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-sky-400 text-zinc-900 flex items-center justify-center border border-zinc-900">
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                  <path d="M16.7 6.3 8.5 14.5 3.3 9.3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
             {% endif %}
           </button>
-        {% else %}
-          <div class="h-10 w-10"></div>
-        {% endif %}
+        </div>
       </div>
-    </div>
+    {% else %}
+      <!-- LIBRE -->
+      <a href="/turnos/nuevo?date_str={{ selected_date }}&time_str={{ hhmm }}&staff_id={{ staff_id }}&salon={{ salon }}"
+         class="block px-4 py-3 border-b border-zinc-800/70 hover:bg-white/5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-16 shrink-0 text-zinc-300 font-extrabold">{{ hhmm }}</div>
+            <div class="text-emerald-400 font-extrabold">LIBRE</div>
+          </div>
+          <div class="text-emerald-400/70 text-sm font-bold">Disponible</div>
+        </div>
+      </a>
+    {% endif %}
   {% endfor %}
 </div>
 
 <script>
-  const daysWith = new Set({{ days_with_turnos | tojson }});
+  // ✅ A prueba de Undefined: si viene vacío, no rompe
+  const daysWith = new Set({{ (days_with_turnos or []) | tojson }});
 
-  const staffSel = document.getElementById("staffSel");
-  const salonSel = document.getElementById("salonSel");
-  const datePick = document.getElementById("datePick");
+  const btnFecha = document.getElementById("btnFecha");
+  const datePicker = document.getElementById("datePicker");
 
-  function go() {
-    const d = datePick.value;
-    const st = staffSel.value;
-    const sa = salonSel.value;
-    window.location.href = `/turnos?date_str=${encodeURIComponent(d)}&staff_id=${encodeURIComponent(st)}&salon=${encodeURIComponent(sa)}`;
-  }
-
-  staffSel.addEventListener("change", go);
-  salonSel.addEventListener("change", go);
-  datePick.addEventListener("change", go);
-
-  // Click en slot libre => abre nuevo turno con fecha/hora
-  document.querySelectorAll(".slot-row").forEach(row => {
-    row.addEventListener("click", (e) => {
-      if (e.target.closest(".wa-btn")) return;
-      const hh = row.dataset.hh;
-      const isLibre = row.innerText.includes("LIBRE");
-      if (!isLibre) return;
-
-      const d = datePick.value;
-      const st = staffSel.value;
-      const sa = salonSel.value;
-      window.location.href = `/turnos/nuevo?date_str=${encodeURIComponent(d)}&time_str=${encodeURIComponent(hh)}&staff_id=${encodeURIComponent(st)}&salon=${encodeURIComponent(sa)}`;
-    });
+  // Abrir date picker nativo
+  btnFecha.addEventListener("click", () => {
+    // Algunos móviles necesitan focus+click
+    datePicker.focus();
+    datePicker.click();
   });
 
-  // WA button
-  async function openWA(apptId){
-    const res = await fetch(`/turnos/${apptId}/wa_link`);
-    const data = await res.json();
-    if(data.url){
-      window.open(data.url, "_blank");
-      // marcar enviado
-      await fetch(`/turnos/${apptId}/wa_sent`, {method:"POST"});
-      window.location.reload();
-    }
-  }
-
-  document.querySelectorAll(".wa-btn").forEach(btn=>{
-    btn.addEventListener("click", (e)=>{
-      e.stopPropagation();
-      const id = btn.dataset.appt;
-      openWA(id);
-    });
+  // Al elegir fecha, navegamos a /turnos con params actuales
+  datePicker.addEventListener("change", () => {
+    const d = datePicker.value;
+    const url = `/turnos?date_str=${encodeURIComponent(d)}&staff_id={{ staff_id }}&salon={{ salon }}`;
+    window.location.href = url;
   });
+
+  // Pintar "verde" si el datePicker está en un día con turnos (solo referencia visual)
+  // (El date input nativo no deja colorear días por CSS, por eso lo usamos como navegación.)
+  // Si querés calendario con puntos verdes real, lo hacemos con un mini-calendario custom.
+  // Por ahora: lo importante es que FECHA abre y navega sin romper.
+  if (daysWith.has(datePicker.value)) {
+    btnFecha.style.borderColor = "#22c55e";
+  }
 </script>
 
 {% endblock %}

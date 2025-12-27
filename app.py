@@ -2,8 +2,8 @@ from fastapi import FastAPI, Request, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.orm.properties import RelationshipProperty
+from sqlalchemy.orm import Session
+from sqlalchemy import text
 from datetime import date, datetime, time, timedelta
 
 from db import Base, engine, SessionLocal
@@ -15,7 +15,7 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-STUDIO_WA_NUMBER = "5491167253722"
+STUDIO_WA_NUMBER = "5491167253722"  # número del estudio para referencia (no se usa en wa.me)
 
 
 # ---------------- DB ----------------
@@ -27,18 +27,80 @@ def get_db():
         db.close()
 
 
-# ---------------- Helpers ----------------
+# ---------------- MIGRACIONES SQLITE (SIN PERDER DATOS) ----------------
+def ensure_sqlite_migrations():
+    """
+    SQLite NO agrega columnas con create_all si la tabla ya existe.
+    Esto agrega columnas nuevas si faltan, sin borrar datos.
+    """
+    with engine.connect() as conn:
+        # --- clients: last_visit ---
+        cols = conn.execute(text("PRAGMA table_info(clients)")).fetchall()
+        colnames = {c[1] for c in cols}  # c[1] = column name
+        if "last_visit" not in colnames:
+            conn.execute(text("ALTER TABLE clients ADD COLUMN last_visit DATE"))
+            conn.commit()
+
+        # --- appointments: wa_sent / salon / deposit_paid / deposit_amount / status / notes / duration_min ---
+        cols2 = conn.execute(text("PRAGMA table_info(appointments)")).fetchall()
+        appt_cols = {c[1] for c in cols2}
+        if "wa_sent" not in appt_cols:
+            conn.execute(text("ALTER TABLE appointments ADD COLUMN wa_sent BOOLEAN"))
+            conn.commit()
+        if "salon" not in appt_cols:
+            conn.execute(text("ALTER TABLE appointments ADD COLUMN salon INTEGER"))
+            conn.commit()
+        if "deposit_paid" not in appt_cols:
+            conn.execute(text("ALTER TABLE appointments ADD COLUMN deposit_paid BOOLEAN"))
+            conn.commit()
+        if "deposit_amount" not in appt_cols:
+            conn.execute(text("ALTER TABLE appointments ADD COLUMN deposit_amount INTEGER"))
+            conn.commit()
+        if "status" not in appt_cols:
+            conn.execute(text("ALTER TABLE appointments ADD COLUMN status VARCHAR(30)"))
+            conn.commit()
+        if "notes" not in appt_cols:
+            conn.execute(text("ALTER TABLE appointments ADD COLUMN notes TEXT"))
+            conn.commit()
+        if "duration_min" not in appt_cols:
+            conn.execute(text("ALTER TABLE appointments ADD COLUMN duration_min INTEGER"))
+            conn.commit()
+
+        # Backfill defaults
+        conn.execute(text("UPDATE appointments SET salon = COALESCE(salon, 1)"))
+        conn.execute(text("UPDATE appointments SET wa_sent = COALESCE(wa_sent, 0)"))
+        conn.execute(text("UPDATE appointments SET deposit_paid = COALESCE(deposit_paid, 0)"))
+        conn.execute(text("UPDATE appointments SET deposit_amount = COALESCE(deposit_amount, 0)"))
+        conn.execute(text("UPDATE appointments SET status = COALESCE(status, 'ACTIVO')"))
+        conn.execute(text("UPDATE appointments SET duration_min = COALESCE(duration_min, 30)"))
+        conn.commit()
+
+        # Backfill last_visit desde turnos
+        conn.execute(text("""
+            UPDATE clients
+            SET last_visit = (
+                SELECT MAX(a.date)
+                FROM appointments a
+                WHERE a.client_id = clients.id
+                  AND COALESCE(a.status,'ACTIVO') != 'CANCELADO'
+            )
+            WHERE last_visit IS NULL
+        """))
+        conn.commit()
+
+
+ensure_sqlite_migrations()
+
+
+# ---------------- HELPERS ----------------
 def _digits(s: str) -> str:
     return "".join(ch for ch in (s or "") if ch.isdigit())
 
 
 def normalize_ar_phone_to_wa(phone_raw: str) -> str:
     """
-    Acepta:
-    - 11xxxxxxxx (común)
-    - +54 9 11xxxxxxxx
-    - 54911xxxxxxxx
-    Devuelve formato wa.me: 54911xxxxxxxx
+    Te pasan 11xxxxxxxx (sin +54 9).
+    WhatsApp internacional: 54911xxxxxxxx
     """
     p = _digits(phone_raw)
 
@@ -71,10 +133,9 @@ def make_wa_message(appt: Appointment) -> str:
 
 def build_slots(start_h=8, end_h=19, step_min=30):
     slots = []
-    t0 = datetime.combine(date.today(), time(start_h, 0))
-    t1 = datetime.combine(date.today(), time(end_h, 0))
-    t = t0
-    while t <= t1:
+    t = datetime.combine(date.today(), time(start_h, 0))
+    end = datetime.combine(date.today(), time(end_h, 0))
+    while t <= end:
         slots.append(t.time())
         t += timedelta(minutes=step_min)
     return slots
@@ -84,6 +145,10 @@ SLOTS = build_slots()
 
 
 def nearest_open_date(db: Session) -> date:
+    """
+    Muestra por defecto el día más próximo que tenga turnos.
+    Si no hay turnos, muestra hoy.
+    """
     today = date.today()
     appts = (
         db.query(Appointment)
@@ -97,52 +162,13 @@ def nearest_open_date(db: Session) -> date:
     return today
 
 
-def _salon_filter(AppointmentModel, salon_value: int):
-    """
-    Soporta:
-    - salon como Integer
-    - salon como relationship (usar salon_id si existe)
-    """
-    if salon_value not in (1, 2):
-        salon_value = 1
-
-    if hasattr(AppointmentModel, "salon_id"):
-        return getattr(AppointmentModel, "salon_id") == salon_value
-
-    if hasattr(AppointmentModel, "salon"):
-        prop = getattr(AppointmentModel, "salon").property
-        if isinstance(prop, RelationshipProperty):
-            return None  # no filtrar para no romper
-        return getattr(AppointmentModel, "salon") == salon_value
-
-    return None
-
-
-def _assign_salon_kwargs(AppointmentModel, salon_value: int) -> dict:
-    if salon_value not in (1, 2):
-        salon_value = 1
-
-    if hasattr(AppointmentModel, "salon_id"):
-        return {"salon_id": salon_value}
-
-    if hasattr(AppointmentModel, "salon"):
-        prop = getattr(AppointmentModel, "salon").property
-        if isinstance(prop, RelationshipProperty):
-            return {}
-        return {"salon": salon_value}
-
-    return {}
-
-
 # ---------------- HOME ----------------
 @app.get("/", response_class=HTMLResponse)
 def home():
     return RedirectResponse("/turnos", status_code=302)
 
 
-# ===========================
-#          CLIENTES
-# ===========================
+# ---------------- CLIENTES ----------------
 @app.get("/clientes", response_class=HTMLResponse)
 def clientes(request: Request, q: str = "", db: Session = Depends(get_db)):
     qn = (q or "").strip().lower()
@@ -170,12 +196,7 @@ def nuevo_cliente(
     notes: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    c = Client(
-        name=(name or "").strip(),
-        phone=(phone or "").strip(),
-        email=(email or "").strip(),
-        notes=(notes or "").strip(),
-    )
+    c = Client(name=name.strip(), phone=phone.strip(), email=email.strip(), notes=notes.strip())
     db.add(c)
     db.commit()
     return RedirectResponse("/clientes", status_code=303)
@@ -187,20 +208,25 @@ def cliente_ficha(request: Request, client_id: int, db: Session = Depends(get_db
     if not c:
         raise HTTPException(status_code=404, detail="Not Found")
 
+    # historial de turnos del cliente
     history = (
         db.query(Appointment)
-        .options(joinedload(Appointment.specialty), joinedload(Appointment.staff))
         .filter(Appointment.client_id == client_id, Appointment.status != "CANCELADO")
         .order_by(Appointment.date.desc(), Appointment.start_time.desc())
         .all()
     )
 
+    last = "—"
+    if c.last_visit:
+        last = c.last_visit.strftime("%d/%m/%Y")
+
     return templates.TemplateResponse(
         "cliente_ficha.html",
-        {"request": request, "c": c, "history": history},
+        {"request": request, "c": c, "last": last, "history": history},
     )
 
 
+# ✅ IMPORTANTE: tu template usa /clientes/{id}/editar
 @app.post("/clientes/{client_id}/editar")
 def cliente_editar(
     client_id: int,
@@ -214,27 +240,16 @@ def cliente_editar(
     if not c:
         raise HTTPException(status_code=404, detail="Not Found")
 
-    c.name = (name or "").strip()
-    c.phone = (phone or "").strip()
-    c.email = (email or "").strip()
-    c.notes = (notes or "").strip()
+    c.name = name.strip()
+    c.phone = phone.strip()
+    c.email = email.strip()
+    c.notes = notes.strip()
     db.commit()
 
     return RedirectResponse(f"/clientes/{client_id}", status_code=303)
 
 
-@app.post("/clientes/{client_id}/borrar")
-def cliente_borrar(client_id: int, db: Session = Depends(get_db)):
-    c = db.query(Client).filter(Client.id == client_id).first()
-    if c:
-        db.delete(c)
-        db.commit()
-    return RedirectResponse("/clientes", status_code=303)
-
-
-# ===========================
-#            ADMIN
-# ===========================
+# ---------------- ADMIN ----------------
 @app.get("/admin", response_class=HTMLResponse)
 def admin(request: Request, db: Session = Depends(get_db)):
     specialties = db.query(Specialty).order_by(Specialty.name.asc()).all()
@@ -251,21 +266,22 @@ def nueva_especialidad(
     color_hex: str = Form("#60a5fa"),
     db: Session = Depends(get_db),
 ):
-    db.add(Specialty(name=(name or "").strip().upper(), color_hex=(color_hex or "").strip()))
+    db.add(Specialty(name=name.strip().upper(), color_hex=color_hex.strip()))
     db.commit()
     return RedirectResponse("/admin", status_code=303)
 
 
 @app.post("/admin/staff/nuevo")
 def nuevo_staff(name: str = Form(...), db: Session = Depends(get_db)):
-    db.add(Staff(name=(name or "").strip().upper()))
+    db.add(Staff(name=name.strip().upper()))
     db.commit()
     return RedirectResponse("/admin", status_code=303)
 
 
-# OJO: tus templates usan /eliminar
+# tus templates usan /eliminar, entonces dejo /eliminar (y también /borrar por compatibilidad)
 @app.post("/admin/especialidades/{sid}/eliminar")
-def eliminar_especialidad(sid: int, db: Session = Depends(get_db)):
+@app.post("/admin/especialidades/{sid}/borrar")
+def borrar_especialidad(sid: int, db: Session = Depends(get_db)):
     sp = db.query(Specialty).filter(Specialty.id == sid).first()
     if not sp:
         raise HTTPException(status_code=404, detail="Not Found")
@@ -275,7 +291,8 @@ def eliminar_especialidad(sid: int, db: Session = Depends(get_db)):
 
 
 @app.post("/admin/staff/{sid}/eliminar")
-def eliminar_staff(sid: int, db: Session = Depends(get_db)):
+@app.post("/admin/staff/{sid}/borrar")
+def borrar_staff(sid: int, db: Session = Depends(get_db)):
     st = db.query(Staff).filter(Staff.id == sid).first()
     if not st:
         raise HTTPException(status_code=404, detail="Not Found")
@@ -284,9 +301,7 @@ def eliminar_staff(sid: int, db: Session = Depends(get_db)):
     return RedirectResponse("/admin", status_code=303)
 
 
-# ===========================
-#            TURNOS
-# ===========================
+# ---------------- TURNOS ----------------
 @app.get("/turnos", response_class=HTMLResponse)
 def turnos(
     request: Request,
@@ -295,7 +310,7 @@ def turnos(
     salon: int = 1,
     db: Session = Depends(get_db),
 ):
-    # Fecha seleccionada o próximo día con turnos
+    # fecha seleccionada
     if date_str:
         try:
             selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -305,8 +320,6 @@ def turnos(
         selected_date = nearest_open_date(db)
 
     staffs = db.query(Staff).order_by(Staff.name.asc()).all()
-
-    # Staff default = primero (si existe)
     if staff_id == 0 and staffs:
         staff_id = staffs[0].id
 
@@ -315,35 +328,28 @@ def turnos(
 
     q = (
         db.query(Appointment)
-        .options(
-            joinedload(Appointment.client),
-            joinedload(Appointment.specialty),
-            joinedload(Appointment.staff),
-        )
         .filter(
             Appointment.date == selected_date,
             Appointment.status != "CANCELADO",
+            Appointment.salon == salon,
         )
     )
-
-    salon_clause = _salon_filter(Appointment, salon)
-    if salon_clause is not None:
-        q = q.filter(salon_clause)
-
     if staff_id:
         q = q.filter(Appointment.staff_id == staff_id)
 
     day_appts = q.order_by(Appointment.start_time.asc()).all()
+
     by_time = {a.start_time.strftime("%H:%M"): a for a in day_appts}
 
-    # Días con turnos (para puntos verdes)
-    open_dates_q = (
+    open_dates_rows = (
         db.query(Appointment.date)
         .filter(Appointment.status != "CANCELADO")
         .distinct()
         .all()
     )
-    open_dates = sorted({d[0].strftime("%Y-%m-%d") for d in open_dates_q})
+    days_with_turnos = sorted({d[0].strftime("%Y-%m-%d") for d in open_dates_rows})
+
+    weekday_names = ["LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO", "DOMINGO"]
 
     return templates.TemplateResponse(
         "turnos.html",
@@ -351,15 +357,13 @@ def turnos(
             "request": request,
             "selected_date": selected_date.strftime("%Y-%m-%d"),
             "selected_date_label": selected_date.strftime("%d/%m/%Y"),
-            "selected_weekday": ["LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO", "DOMINGO"][selected_date.weekday()],
+            "selected_weekday": weekday_names[selected_date.weekday()],
             "slots": [t.strftime("%H:%M") for t in SLOTS],
             "by_time": by_time,
             "staffs": staffs,
             "staff_id": staff_id,
             "salon": salon,
-            "open_dates": open_dates,
-            "days_with_turnos": open_dates,  # ✅ FIX CRÍTICO (tu template usa esto)
-            "studio_wa": STUDIO_WA_NUMBER,
+            "days_with_turnos": days_with_turnos,  # ✅ ESTO ES LO QUE TU JS NECESITA
         },
     )
 
@@ -414,20 +418,18 @@ def turnos_crear(
     except:
         raise HTTPException(status_code=400, detail="Fecha u hora inválida")
 
-    # Cliente existente o nuevo
+    # cliente
     if client_id and client_id > 0:
         client = db.query(Client).filter(Client.id == client_id).first()
         if not client:
             raise HTTPException(status_code=404, detail="Cliente no existe")
     else:
-        if not (new_name or "").strip():
+        if not new_name.strip():
             raise HTTPException(status_code=400, detail="Falta nombre del cliente")
-        client = Client(name=(new_name or "").strip(), phone=(new_phone or "").strip())
+        client = Client(name=new_name.strip(), phone=new_phone.strip())
         db.add(client)
         db.commit()
         db.refresh(client)
-
-    salon_kwargs = _assign_salon_kwargs(Appointment, salon)
 
     appt = Appointment(
         date=d,
@@ -436,48 +438,93 @@ def turnos_crear(
         client_id=client.id,
         specialty_id=(specialty_id if specialty_id > 0 else None),
         staff_id=(staff_id if staff_id > 0 else None),
+        salon=(salon if salon in (1, 2) else 1),
         deposit_paid=(deposit_paid == "1"),
         deposit_amount=(int(deposit_amount) if deposit_paid == "1" else 0),
-        notes=(notes or "").strip(),
+        notes=notes.strip(),
         status="ACTIVO",
         wa_sent=False,
-        **salon_kwargs,
     )
-
     db.add(appt)
+
+    # actualizar última visita (la última visita real puede ser futura, pero sirve como “último turno agendado”)
+    client.last_visit = d
+
     db.commit()
 
-    # Actualiza última visita del cliente
-    try:
-        if hasattr(client, "last_visit"):
-            client.last_visit = d
-            db.commit()
-    except:
-        pass
-
     return RedirectResponse(
-        f"/turnos?date_str={date_str}&staff_id={staff_id}&salon={salon}",
+        f"/turnos?date_str={date_str}&staff_id={staff_id}&salon={appt.salon}",
         status_code=303,
     )
 
 
-@app.get("/turnos/{appt_id}/wa_link")
-def get_wa_link(appt_id: int, db: Session = Depends(get_db)):
-    appt = (
-        db.query(Appointment)
-        .options(joinedload(Appointment.client))
-        .filter(Appointment.id == appt_id)
-        .first()
-    )
+@app.get("/turnos/{appt_id}/editar", response_class=HTMLResponse)
+def turno_editar(request: Request, appt_id: int, db: Session = Depends(get_db)):
+    appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
     if not appt:
         raise HTTPException(status_code=404, detail="Not Found")
 
-    phone = normalize_ar_phone_to_wa(appt.client.phone if appt.client else "")
-    msg = make_wa_message(appt)
+    clients = db.query(Client).order_by(Client.name.asc()).all()
+    specialties = db.query(Specialty).order_by(Specialty.name.asc()).all()
+    staff = db.query(Staff).order_by(Staff.name.asc()).all()
 
-    import urllib.parse
-    url = f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}"
-    return JSONResponse({"url": url})
+    return templates.TemplateResponse(
+        "turno_editar.html",
+        {
+            "request": request,
+            "appt": appt,
+            "clients": clients,
+            "specialties": specialties,
+            "staff": staff,
+        },
+    )
+
+
+@app.post("/turnos/{appt_id}/editar")
+def turno_editar_post(
+    appt_id: int,
+    date_str: str = Form(...),
+    time_str: str = Form(...),
+    duration_min: int = Form(30),
+    specialty_id: int = Form(0),
+    staff_id: int = Form(0),
+    salon: int = Form(1),
+    deposit_paid: str = Form("0"),
+    deposit_amount: int = Form(0),
+    notes: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
+    if not appt:
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    try:
+        d = datetime.strptime(date_str, "%Y-%m-%d").date()
+        t = datetime.strptime(time_str, "%H:%M").time()
+    except:
+        raise HTTPException(status_code=400, detail="Fecha u hora inválida")
+
+    appt.date = d
+    appt.start_time = t
+    appt.duration_min = int(duration_min)
+    appt.specialty_id = (specialty_id if specialty_id > 0 else None)
+    appt.staff_id = (staff_id if staff_id > 0 else None)
+    appt.salon = (salon if salon in (1, 2) else 1)
+    appt.deposit_paid = (deposit_paid == "1")
+    appt.deposit_amount = (int(deposit_amount) if appt.deposit_paid else 0)
+    appt.notes = notes.strip()
+
+    # actualizar last_visit del cliente
+    c = db.query(Client).filter(Client.id == appt.client_id).first()
+    if c:
+        c.last_visit = d
+
+    db.commit()
+
+    return RedirectResponse(
+        f"/turnos?date_str={d.strftime('%Y-%m-%d')}&staff_id={appt.staff_id or 0}&salon={appt.salon}",
+        status_code=303,
+    )
 
 
 @app.post("/turnos/{appt_id}/wa_sent")
@@ -488,3 +535,20 @@ def mark_wa_sent(appt_id: int, db: Session = Depends(get_db)):
     appt.wa_sent = True
     db.commit()
     return JSONResponse({"ok": True})
+
+
+@app.get("/turnos/{appt_id}/wa_link")
+def get_wa_link(appt_id: int, db: Session = Depends(get_db)):
+    appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
+    if not appt:
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    if not appt.client or not appt.client.phone:
+        raise HTTPException(status_code=400, detail="Cliente sin teléfono")
+
+    phone = normalize_ar_phone_to_wa(appt.client.phone)
+    msg = make_wa_message(appt)
+
+    import urllib.parse
+    url = f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}"
+    return JSONResponse({"url": url})
