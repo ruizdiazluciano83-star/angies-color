@@ -2,141 +2,133 @@
 {% block content %}
 
 <div class="mb-3">
-  <div class="text-zinc-400 text-[11px] tracking-widest mb-1">AGENDA</div>
+  <div class="text-zinc-400 text-[11px] tracking-widest mb-1">AGENDAR</div>
   <h2 class="text-lg font-semibold">Nuevo turno</h2>
-  {% if error %}
-    <div class="mt-2 text-sm font-semibold text-red-300">{{ error }}</div>
-  {% endif %}
 </div>
 
+{% if error %}
+  <div class="mb-3 px-4 py-3 rounded-2xl border border-red-700 bg-red-900/20 text-red-200 text-sm">
+    {{ error }}
+  </div>
+{% endif %}
+
 <form method="post" action="/turnos/nuevo" class="space-y-3">
+  <div class="rounded-3xl border border-zinc-800 bg-white/5 backdrop-blur-xl p-4 space-y-3">
 
-  <!-- FECHA -->
-  <div>
-    <label class="block text-xs text-zinc-400 mb-1">Fecha</label>
-    <input type="date" name="fecha" required value="{{ pref_date }}"
-      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
-  </div>
+    <div>
+      <label class="text-xs text-zinc-400">Fecha</label>
+      <input name="fecha" type="date" value="{{ pref_date }}" required
+             class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
+    </div>
 
-  <!-- HORA -->
-  <div>
-    <label class="block text-xs text-zinc-400 mb-1">Hora</label>
-    <select name="hora" required
-      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
-      {% for h in range(8, 20) %}
-        {% for m in [0,30] %}
-          {% set t = "%02d:%02d"|format(h,m) %}
-          <option value="{{ t }}" {% if pref_time==t %}selected{% endif %}>{{ t }}</option>
+    <div>
+      <label class="text-xs text-zinc-400">Hora</label>
+      <input name="hora" type="time" value="{{ pref_time }}" required
+             class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
+    </div>
+
+    <div>
+      <label class="text-xs text-zinc-400">Duración</label>
+      <select name="duration_min" required
+              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
+        {% for m in [15,30,45,60,75,90,105,120,135,150,165,180,195,210,225,240] %}
+          <option value="{{ m }}">
+            {{ "%02d"|format(m//60) }}:{{ "%02d"|format(m%60) }}
+          </option>
         {% endfor %}
-      {% endfor %}
-    </select>
-  </div>
-
-  <!-- CLIENTE -->
-  <div>
-    <label class="block text-xs text-zinc-400 mb-1">Cliente</label>
-    <select id="clientSelect"
-      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
-      <option value="">Seleccionar cliente</option>
-      {% for c in clients %}
-        <option value="{{ c.id }}">{{ c.name }}</option>
-      {% endfor %}
-      <option value="new">➕ Crear nuevo cliente</option>
-    </select>
-
-    <input type="hidden" name="client_mode" id="clientMode" value="existing">
-    <input type="hidden" name="client_id" id="clientId" value="0">
-
-    <div id="newClientBox" class="hidden mt-2 space-y-2">
-      <input name="new_client_name" placeholder="Nombre del cliente"
-        class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
-      <input name="new_client_phone" placeholder="Teléfono (opcional)"
-        class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+      </select>
     </div>
-  </div>
 
-  <!-- TRABAJO -->
-  <div>
-    <label class="block text-xs text-zinc-400 mb-1">Trabajo</label>
-    <select name="specialty_id" required
-      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
-      <option value="">Seleccionar trabajo</option>
-      {% for s in specialties %}
-        <option value="{{ s.id }}">{{ s.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <!-- DURACIÓN -->
-  <div>
-    <label class="block text-xs text-zinc-400 mb-1">Duración</label>
-    <select name="duration_min" required
-      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
-      <option value="">Seleccionar duración</option>
-      {% for m in [30,60,90,120,150,180,210,240] %}
-        <option value="{{ m }}">{{ "%02d:%02d"|format(m//60, m%60) }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <!-- STAFF -->
-  <div>
-    <label class="block text-xs text-zinc-400 mb-1">Staff (opcional)</label>
-    <select name="staff_id"
-      class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
-      <option value="0">Sin asignar</option>
-      {% for p in staff %}
-        <option value="{{ p.id }}">{{ p.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <!-- SEÑA -->
-  <div class="rounded-2xl border border-zinc-800 bg-white/5 backdrop-blur-xl p-4">
-    <label class="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-      <input id="depositChk" type="checkbox" name="deposit_paid" class="w-4 h-4">
-      Dejó seña
-    </label>
-    <div id="depositBox" class="hidden mt-2">
-      <input type="number" name="deposit_amount" min="0" value="0" placeholder="Monto de seña ($)"
-        class="w-full px-4 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-sm">
+    <div>
+      <label class="text-xs text-zinc-400">Cliente</label>
+      <select id="client_mode" name="client_mode"
+              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
+        <option value="existing" selected>Elegir existente</option>
+        <option value="new">Crear nuevo</option>
+      </select>
     </div>
+
+    <div id="existing_client">
+      <label class="text-xs text-zinc-400">Seleccionar cliente</label>
+      <select name="client_id"
+              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
+        {% for c in clients %}
+          <option value="{{ c.id }}">{{ c.name }}{% if c.phone %} ({{ c.phone }}){% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div id="new_client" class="hidden space-y-2">
+      <div>
+        <label class="text-xs text-zinc-400">Nombre</label>
+        <input name="new_client_name" type="text"
+               class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
+      </div>
+      <div>
+        <label class="text-xs text-zinc-400">Teléfono (como te lo pasan)</label>
+        <input name="new_client_phone" type="text"
+               class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
+      </div>
+    </div>
+
+    <div>
+      <label class="text-xs text-zinc-400">Trabajo</label>
+      <select name="specialty_id" required
+              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
+        {% for sp in specialties %}
+          <option value="{{ sp.id }}">{{ sp.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="text-xs text-zinc-400">Staff</label>
+      <select name="staff_id" required
+              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
+        {% for s in staff_list %}
+          <option value="{{ s.id }}" {% if s.id == pref_staff_id %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="text-xs text-zinc-400">Salón</label>
+      <select name="salon_id" required
+              class="w-full mt-1 px-3 py-3 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white">
+        {% for sa in salons %}
+          <option value="{{ sa.id }}">{{ sa.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <input id="deposit_paid" name="deposit_paid" type="checkbox" class="w-5 h-5">
+      <label for="deposit_paid" class="text-sm text-zinc-200 font-semibold">Dejó seña</label>
+      <input id="deposit_amount" name="deposit_amount" type="number" value="0" min="0"
+             class="ml-auto w-32 px-3 py-2 rounded-2xl bg-zinc-900/60 border border-zinc-700 text-white"
+             placeholder="$">
+    </div>
+
   </div>
 
-  <button type="submit"
-    class="w-full mt-2 py-3 rounded-2xl text-sm font-semibold text-zinc-900"
-    style="background: var(--gold);">
-    Confirmar turno
+  <button type="submit" class="w-full px-4 py-3 rounded-2xl font-semibold text-zinc-900"
+          style="background: var(--gold);">
+    Guardar turno
   </button>
-
 </form>
 
 <script>
-  // cliente nuevo / existente
-  const clientSelect = document.getElementById("clientSelect");
-  const clientMode = document.getElementById("clientMode");
-  const clientId = document.getElementById("clientId");
-  const newClientBox = document.getElementById("newClientBox");
-
-  clientSelect.addEventListener("change", () => {
-    const v = clientSelect.value;
-    if (v === "new") {
-      clientMode.value = "new";
-      clientId.value = "0";
-      newClientBox.classList.remove("hidden");
+  const mode = document.getElementById("client_mode");
+  const existing = document.getElementById("existing_client");
+  const nw = document.getElementById("new_client");
+  mode.addEventListener("change", () => {
+    if (mode.value === "new") {
+      existing.classList.add("hidden");
+      nw.classList.remove("hidden");
     } else {
-      clientMode.value = "existing";
-      clientId.value = v || "0";
-      newClientBox.classList.add("hidden");
+      nw.classList.add("hidden");
+      existing.classList.remove("hidden");
     }
-  });
-
-  // seña
-  const chk = document.getElementById("depositChk");
-  const box = document.getElementById("depositBox");
-  chk.addEventListener("change", () => {
-    if (chk.checked) box.classList.remove("hidden");
-    else box.classList.add("hidden");
   });
 </script>
 
