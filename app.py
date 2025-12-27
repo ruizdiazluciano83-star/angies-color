@@ -18,7 +18,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 STUDIO_WA_NUMBER = "5491167253722"
 
 
-# ---------------- DB ----------------
 def get_db():
     db = SessionLocal()
     try:
@@ -27,17 +26,14 @@ def get_db():
         db.close()
 
 
-# ---------------- MIGRACIONES SQLITE (SIN PERDER DATOS) ----------------
 def ensure_sqlite_migrations():
     with engine.connect() as conn:
-        # clients: last_visit
         cols = conn.execute(text("PRAGMA table_info(clients)")).fetchall()
         colnames = {c[1] for c in cols}
         if "last_visit" not in colnames:
             conn.execute(text("ALTER TABLE clients ADD COLUMN last_visit DATE"))
             conn.commit()
 
-        # appointments: columnas nuevas
         cols2 = conn.execute(text("PRAGMA table_info(appointments)")).fetchall()
         appt_cols = {c[1] for c in cols2}
 
@@ -57,7 +53,6 @@ def ensure_sqlite_migrations():
         add_col_if_missing("notes", "ALTER TABLE appointments ADD COLUMN notes TEXT")
         add_col_if_missing("duration_min", "ALTER TABLE appointments ADD COLUMN duration_min INTEGER")
 
-        # backfill defaults
         conn.execute(text("UPDATE appointments SET salon = COALESCE(salon, 1)"))
         conn.execute(text("UPDATE appointments SET wa_sent = COALESCE(wa_sent, 0)"))
         conn.execute(text("UPDATE appointments SET deposit_paid = COALESCE(deposit_paid, 0)"))
@@ -66,7 +61,6 @@ def ensure_sqlite_migrations():
         conn.execute(text("UPDATE appointments SET duration_min = COALESCE(duration_min, 30)"))
         conn.commit()
 
-        # backfill last_visit desde turnos existentes
         conn.execute(text("""
             UPDATE clients
             SET last_visit = (
@@ -83,7 +77,6 @@ def ensure_sqlite_migrations():
 ensure_sqlite_migrations()
 
 
-# ---------------- HELPERS ----------------
 def _digits(s: str) -> str:
     return "".join(ch for ch in (s or "") if ch.isdigit())
 
@@ -141,13 +134,12 @@ def nearest_open_date(db: Session) -> date:
     return today
 
 
-# ---------------- HOME ----------------
 @app.get("/", response_class=HTMLResponse)
 def home():
     return RedirectResponse("/turnos", status_code=302)
 
 
-# ---------------- CLIENTES ----------------
+# -------- CLIENTES --------
 @app.get("/clientes", response_class=HTMLResponse)
 def clientes(request: Request, q: str = "", db: Session = Depends(get_db)):
     qn = (q or "").strip().lower()
@@ -156,7 +148,6 @@ def clientes(request: Request, q: str = "", db: Session = Depends(get_db)):
         filtered = [c for c in all_clients if qn in (c.name or "").lower() or qn in (c.phone or "")]
     else:
         filtered = all_clients
-
     return templates.TemplateResponse("clientes.html", {"request": request, "clients": filtered, "q": q})
 
 
@@ -186,9 +177,7 @@ def cliente_ficha(request: Request, client_id: int, db: Session = Depends(get_db
         .order_by(Appointment.date.desc(), Appointment.start_time.desc())
         .all()
     )
-
     last = c.last_visit.strftime("%d/%m/%Y") if getattr(c, "last_visit", None) else "—"
-
     return templates.TemplateResponse("cliente_ficha.html", {"request": request, "c": c, "last": last, "history": history})
 
 
@@ -204,17 +193,15 @@ def cliente_editar(
     c = db.query(Client).filter(Client.id == client_id).first()
     if not c:
         raise HTTPException(status_code=404, detail="Not Found")
-
     c.name = name.strip()
     c.phone = phone.strip()
     c.email = email.strip()
     c.notes = notes.strip()
     db.commit()
-
     return RedirectResponse(f"/clientes/{client_id}", status_code=303)
 
 
-# ---------------- ADMIN ----------------
+# -------- ADMIN --------
 @app.get("/admin", response_class=HTMLResponse)
 def admin(request: Request, db: Session = Depends(get_db)):
     specialties = db.query(Specialty).order_by(Specialty.name.asc()).all()
@@ -262,7 +249,7 @@ def borrar_staff(sid: int, db: Session = Depends(get_db)):
     return RedirectResponse("/admin", status_code=303)
 
 
-# ---------------- TURNOS ----------------
+# -------- TURNOS --------
 @app.get("/turnos", response_class=HTMLResponse)
 def turnos(
     request: Request,
@@ -342,19 +329,10 @@ def turnos_nuevo(
         "turnos_nuevo.html",
         {
             "request": request,
-
-            # listas + alias (por compatibilidad con templates)
             "clients": clients,
-            "clientes": clients,
-
             "specialties": specialties,
-            "especialidades": specialties,
-
             "staff": staffs,
             "staffs": staffs,
-            "staff_list": staffs,
-
-            # valores
             "date_str": date_str,
             "time_str": time_str,
             "staff_id": staff_id,
@@ -397,6 +375,9 @@ def turnos_crear(
         db.commit()
         db.refresh(client)
 
+    if salon not in (1, 2):
+        salon = 1
+
     appt = Appointment(
         date=d,
         start_time=t,
@@ -404,7 +385,7 @@ def turnos_crear(
         client_id=client.id,
         specialty_id=(specialty_id if specialty_id > 0 else None),
         staff_id=(staff_id if staff_id > 0 else None),
-        salon=(salon if salon in (1, 2) else 1),
+        salon=salon,
         deposit_paid=(deposit_paid == "1"),
         deposit_amount=(int(deposit_amount) if deposit_paid == "1" else 0),
         notes=notes.strip(),
@@ -413,7 +394,6 @@ def turnos_crear(
     )
     db.add(appt)
 
-    # last_visit
     try:
         client.last_visit = d
     except:
@@ -422,12 +402,11 @@ def turnos_crear(
     db.commit()
 
     return RedirectResponse(
-        f"/turnos?date_str={date_str}&staff_id={staff_id}&salon={appt.salon}",
+        f"/turnos?date_str={date_str}&staff_id={staff_id}&salon={salon}",
         status_code=303,
     )
 
 
-# ✅ EDITAR TURNO (ANTI-CRASH POR VARIABLES)
 @app.get("/turnos/{appt_id}/editar", response_class=HTMLResponse)
 def turno_editar(request: Request, appt_id: int, db: Session = Depends(get_db)):
     appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
@@ -438,29 +417,90 @@ def turno_editar(request: Request, appt_id: int, db: Session = Depends(get_db)):
     specialties = db.query(Specialty).order_by(Specialty.name.asc()).all()
     staffs = db.query(Staff).order_by(Staff.name.asc()).all()
 
-    # Alias: turno_editar.html puede esperar cualquier nombre
+    # ✅ mandamos todas las variables que el template puede pedir
     return templates.TemplateResponse(
         "turno_editar.html",
         {
             "request": request,
 
-            # el turno con aliases
+            "a": appt,
             "appt": appt,
             "appointment": appt,
             "turno": appt,
 
-            # listas con aliases
             "clients": clients,
-            "clientes": clients,
-
             "specialties": specialties,
-            "especialidades": specialties,
 
             "staff": staffs,
             "staffs": staffs,
-            "staff_list": staffs,
         },
     )
+
+
+@app.post("/turnos/{appt_id}/editar")
+def turno_editar_post(
+    appt_id: int,
+    date_str: str = Form(...),
+    time_str: str = Form(...),
+    client_id: int = Form(...),
+    specialty_id: int = Form(0),
+    duration_min: int = Form(30),
+    staff_id: int = Form(0),
+    salon: int = Form(1),
+    deposit_paid: str = Form("0"),
+    deposit_amount: int = Form(0),
+    notes: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
+    if not appt:
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    try:
+        d = datetime.strptime(date_str, "%Y-%m-%d").date()
+        t = datetime.strptime(time_str, "%H:%M").time()
+    except:
+        raise HTTPException(status_code=400, detail="Fecha u hora inválida")
+
+    appt.date = d
+    appt.start_time = t
+    appt.duration_min = int(duration_min)
+
+    appt.client_id = int(client_id)
+    appt.specialty_id = (int(specialty_id) if int(specialty_id) > 0 else None)
+    appt.staff_id = (int(staff_id) if int(staff_id) > 0 else None)
+
+    appt.salon = (int(salon) if int(salon) in (1, 2) else 1)
+
+    appt.deposit_paid = (deposit_paid == "1")
+    appt.deposit_amount = (int(deposit_amount) if appt.deposit_paid else 0)
+
+    appt.notes = (notes or "").strip()
+
+    # last_visit
+    c = db.query(Client).filter(Client.id == appt.client_id).first()
+    if c:
+        try:
+            c.last_visit = d
+        except:
+            pass
+
+    db.commit()
+
+    return RedirectResponse(
+        f"/turnos?date_str={appt.date.strftime('%Y-%m-%d')}&staff_id={appt.staff_id or 0}&salon={appt.salon}",
+        status_code=303,
+    )
+
+
+@app.post("/turnos/{appt_id}/cancelar")
+def turno_cancelar(appt_id: int, db: Session = Depends(get_db)):
+    appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
+    if not appt:
+        raise HTTPException(status_code=404, detail="Not Found")
+    appt.status = "CANCELADO"
+    db.commit()
+    return RedirectResponse("/turnos", status_code=303)
 
 
 @app.post("/turnos/{appt_id}/wa_sent")
@@ -478,7 +518,6 @@ def get_wa_link(appt_id: int, db: Session = Depends(get_db)):
     appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
     if not appt:
         raise HTTPException(status_code=404, detail="Not Found")
-
     if not appt.client or not appt.client.phone:
         raise HTTPException(status_code=400, detail="Cliente sin teléfono")
 
