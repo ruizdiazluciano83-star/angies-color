@@ -21,6 +21,14 @@ class Staff(Base):
     appointments = relationship("Appointment", back_populates="staff")
 
 
+class Salon(Base):
+    __tablename__ = "salons"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, unique=True)
+
+    appointments = relationship("Appointment", back_populates="salon")
+
+
 class Client(Base):
     __tablename__ = "clients"
     id = Column(Integer, primary_key=True, index=True)
@@ -28,6 +36,9 @@ class Client(Base):
     phone = Column(String, default="")
     email = Column(String, default="")
     notes = Column(Text, default="")
+
+    # ✅ última visita (se actualiza al crear/editar turnos)
+    last_visit_date = Column(Date, nullable=True)
 
     appointments = relationship("Appointment", back_populates="client")
     note_items = relationship("ClientNote", back_populates="client", cascade="all, delete-orphan")
@@ -53,7 +64,10 @@ class Appointment(Base):
 
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
     specialty_id = Column(Integer, ForeignKey("specialties.id"), nullable=False)
-    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=True)
+
+    # ✅ ahora son obligatorios operativamente
+    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=False)
+    salon_id = Column(Integer, ForeignKey("salons.id"), nullable=False)
 
     notes = Column(Text, default="")
     status = Column(String, default="CONFIRMADO")
@@ -61,10 +75,10 @@ class Appointment(Base):
     deposit_paid = Column(Boolean, default=False)
     deposit_amount = Column(Integer, default=0)
 
-    # ✅ NUEVO: control de recordatorio WhatsApp
     reminder_sent = Column(Boolean, default=False)
     reminder_sent_at = Column(DateTime, nullable=True)
 
     client = relationship("Client", back_populates="appointments")
     specialty = relationship("Specialty", back_populates="appointments")
     staff = relationship("Staff", back_populates="appointments")
+    salon = relationship("Salon", back_populates="appointments")
