@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, Form, Depends, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -331,16 +331,10 @@ def turnos_nuevo(
     salon: int = 1,
     db: Session = Depends(get_db),
 ):
-    """
-    ✅ Esto es lo que te estaba tirando INTERNAL en "hora libre":
-    tu template turnos_nuevo.html probablemente usa nombres distintos.
-    Entonces le pasamos TODO (alias) para que no rompa.
-    """
     clients = db.query(Client).order_by(Client.name.asc()).all()
     specialties = db.query(Specialty).order_by(Specialty.name.asc()).all()
     staffs = db.query(Staff).order_by(Staff.name.asc()).all()
 
-    # Valores por defecto seguros
     if salon not in (1, 2):
         salon = 1
 
@@ -349,7 +343,7 @@ def turnos_nuevo(
         {
             "request": request,
 
-            # listas (con alias por compatibilidad)
+            # listas + alias (por compatibilidad con templates)
             "clients": clients,
             "clientes": clients,
 
@@ -360,7 +354,7 @@ def turnos_nuevo(
             "staffs": staffs,
             "staff_list": staffs,
 
-            # valores seleccionados
+            # valores
             "date_str": date_str,
             "time_str": time_str,
             "staff_id": staff_id,
@@ -391,7 +385,6 @@ def turnos_crear(
     except:
         raise HTTPException(status_code=400, detail="Fecha u hora inválida")
 
-    # cliente
     if client_id and client_id > 0:
         client = db.query(Client).filter(Client.id == client_id).first()
         if not client:
@@ -420,7 +413,7 @@ def turnos_crear(
     )
     db.add(appt)
 
-    # last_visit (último turno agendado)
+    # last_visit
     try:
         client.last_visit = d
     except:
@@ -434,6 +427,7 @@ def turnos_crear(
     )
 
 
+# ✅ EDITAR TURNO (ANTI-CRASH POR VARIABLES)
 @app.get("/turnos/{appt_id}/editar", response_class=HTMLResponse)
 def turno_editar(request: Request, appt_id: int, db: Session = Depends(get_db)):
     appt = db.query(Appointment).filter(Appointment.id == appt_id).first()
@@ -444,15 +438,27 @@ def turno_editar(request: Request, appt_id: int, db: Session = Depends(get_db)):
     specialties = db.query(Specialty).order_by(Specialty.name.asc()).all()
     staffs = db.query(Staff).order_by(Staff.name.asc()).all()
 
+    # Alias: turno_editar.html puede esperar cualquier nombre
     return templates.TemplateResponse(
         "turno_editar.html",
         {
             "request": request,
+
+            # el turno con aliases
             "appt": appt,
+            "appointment": appt,
+            "turno": appt,
+
+            # listas con aliases
             "clients": clients,
+            "clientes": clients,
+
             "specialties": specialties,
+            "especialidades": specialties,
+
             "staff": staffs,
             "staffs": staffs,
+            "staff_list": staffs,
         },
     )
 
