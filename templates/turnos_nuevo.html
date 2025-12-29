@@ -79,26 +79,27 @@
     </select>
   </div>
 
-  <div class="grid grid-cols-2 gap-3">
-    <div>
-      <div class="text-[11px] tracking-widest text-zinc-400 mb-2">DURACIÓN (min)</div>
-      <select name="duration_min" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
-        {% for m in [30,60,90,120,150,180,210,240] %}
-          <option value="{{ m }}" {% if m == 30 %}selected{% endif %}>{{ m }}</option>
-        {% endfor %}
-      </select>
-    </div>
+  <!-- DURACIÓN (queda sola en la fila) -->
+  <div>
+    <div class="text-[11px] tracking-widest text-zinc-400 mb-2">DURACIÓN (min)</div>
+    <select name="duration_min" class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
+      {% for m in [30,60,90,120,150,180,210,240] %}
+        <option value="{{ m }}" {% if m == 30 %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </div>
 
-    <div>
-      <div class="text-[11px] tracking-widest text-zinc-400 mb-2">SEÑA (opcional)</div>
-      <div class="flex items-center gap-2">
-        <label class="flex items-center gap-2 px-3 py-3 rounded-2xl bg-black/30 border border-zinc-800">
-          <input type="checkbox" name="deposit_paid" value="1">
-          <span class="text-sm font-bold">Dejó seña</span>
-        </label>
-        <input name="deposit_amount" type="number" min="0" placeholder="$"
-               class="flex-1 px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
-      </div>
+  <!-- SEÑA (ABAJO, ancho completo, no estira pantalla) -->
+  <div>
+    <div class="text-[11px] tracking-widest text-zinc-400 mb-2">SEÑA (opcional)</div>
+    <div class="space-y-2">
+      <label class="flex items-center gap-2 px-3 py-3 rounded-2xl bg-black/30 border border-zinc-800">
+        <input type="checkbox" name="deposit_paid" value="1">
+        <span class="text-sm font-bold">Dejó seña</span>
+      </label>
+
+      <input name="deposit_amount" type="number" min="0" placeholder="$"
+             class="w-full px-4 py-3 rounded-2xl bg-black/30 border border-zinc-800 text-white">
     </div>
   </div>
 
