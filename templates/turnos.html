@@ -34,11 +34,101 @@
   </div>
 </div>
 
-<!-- DÍA + FECHA (por ahora visual) -->
-<div class="card p-4 mb-4 flex items-center justify-between">
+<!-- DÍA + FECHA (clickeable: abre calendario) -->
+<button type="button" id="openCalendarBtn"
+        class="card p-4 mb-4 flex items-center justify-between w-full text-left hover:bg-white/5"
+        style="cursor:pointer;">
   <div class="font-extrabold text-xl">{{ selected_weekday }}</div>
   <div class="text-zinc-300 font-bold">{{ selected_date_label }}</div>
+</button>
+
+<!-- MODAL CALENDARIO -->
+<div id="calendarOverlay" class="cal-overlay" aria-hidden="true">
+  <div class="cal-modal card p-4">
+    <div class="flex items-center justify-between mb-3">
+      <button type="button" id="calPrev" class="cal-nav">‹</button>
+      <div id="calTitle" class="font-extrabold"></div>
+      <button type="button" id="calNext" class="cal-nav">›</button>
+    </div>
+
+    <div class="cal-week">
+      <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
+    </div>
+
+    <div id="calGrid" class="cal-grid"></div>
+
+    <div class="mt-4 flex gap-2">
+      <button type="button" id="calToday"
+              class="w-full py-3 rounded-2xl font-extrabold text-zinc-900"
+              style="background: var(--gold);">
+        Ir a hoy
+      </button>
+      <button type="button" id="calClose"
+              class="w-full py-3 rounded-2xl font-extrabold border border-zinc-700 bg-white/5">
+        Cerrar
+      </button>
+    </div>
+  </div>
 </div>
+
+<style>
+  .cal-overlay{
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.65);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 9999;
+  }
+  .cal-overlay.show{ display:flex; }
+  .cal-modal{ width: min(420px, 100%); }
+  .cal-nav{
+    width: 44px; height: 44px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.05);
+    font-weight: 900;
+  }
+  .cal-week{
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(255,255,255,.6);
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .cal-grid{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+  .cal-day{
+    height: 44px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.04);
+    font-weight: 800;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    user-select:none;
+  }
+  .cal-day:hover{ background: rgba(255,255,255,.08); }
+  .cal-day.muted{
+    opacity: .35;
+  }
+  .cal-day.selected{
+    outline: 2px solid rgba(245,197,66,.7);
+    background: rgba(245,197,66,.15);
+  }
+  .cal-day.has{
+    border-color: rgba(34,197,94,.65); /* verde */
+    background: rgba(34,197,94,.10);
+  }
+</style>
 
 <!-- LISTA DE SLOTS -->
 <div class="card overflow-hidden">
@@ -83,7 +173,6 @@
             </div>
           </div>
 
-          <!-- WhatsApp icon (solo visual acá; tu lógica WA ya la tenés con endpoints) -->
           <div class="shrink-0">
             <div class="h-10 w-10 rounded-2xl border border-zinc-700 bg-black/30 flex items-center justify-center">
               <span class="text-green-400 font-black">WA</span>
@@ -94,5 +183,136 @@
     {% endif %}
   {% endfor %}
 </div>
+
+<script>
+  // fechas con turnos (de app.py). Si no viniera, queda []
+  const OPEN_DATES = new Set({{ open_dates | default([]) | tojson }});
+
+  const staffId = {{ staff_id }};
+  const salon = {{ salon }};
+  const selectedDateStr = "{{ selected_date }}"; // YYYY-MM-DD
+
+  const overlay = document.getElementById("calendarOverlay");
+  const btnOpen = document.getElementById("openCalendarBtn");
+  const btnClose = document.getElementById("calClose");
+  const btnToday = document.getElementById("calToday");
+  const btnPrev = document.getElementById("calPrev");
+  const btnNext = document.getElementById("calNext");
+  const titleEl = document.getElementById("calTitle");
+  const gridEl = document.getElementById("calGrid");
+
+  function pad2(n){ return String(n).padStart(2, "0"); }
+  function toYMD(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+
+  function parseYMD(s){
+    // s: YYYY-MM-DD
+    const [y,m,d] = (s||"").split("-").map(Number);
+    return new Date(y, (m||1)-1, d||1);
+  }
+
+  const selectedDate = parseYMD(selectedDateStr);
+  let viewYear = selectedDate.getFullYear();
+  let viewMonth = selectedDate.getMonth(); // 0-11
+
+  const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  function openCal(){
+    overlay.classList.add("show");
+    overlay.setAttribute("aria-hidden", "false");
+    renderCal();
+  }
+  function closeCal(){
+    overlay.classList.remove("show");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+
+  function goTo(dateObj){
+    const ymd = toYMD(dateObj);
+    window.location.href = `/turnos?date_str=${ymd}&staff_id=${staffId}&salon=${salon}`;
+  }
+
+  function renderCal(){
+    titleEl.textContent = `${monthNames[viewMonth]} ${viewYear}`;
+    gridEl.innerHTML = "";
+
+    const first = new Date(viewYear, viewMonth, 1);
+    // Semana empieza lunes: convertimos day (0 dom..6 sáb) a mondayIndex (0 lun..6 dom)
+    const firstDay = first.getDay(); // 0..6
+    const mondayIndex = (firstDay + 6) % 7;
+
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+    // días del mes anterior para completar
+    const prevMonthDays = mondayIndex;
+    const prevLastDate = new Date(viewYear, viewMonth, 0).getDate();
+
+    // total celdas: 6 filas x 7 = 42 (siempre)
+    for(let i=0;i<42;i++){
+      const cell = document.createElement("div");
+      cell.className = "cal-day";
+
+      let dayNum, cellDate;
+
+      if(i < prevMonthDays){
+        dayNum = prevLastDate - prevMonthDays + 1 + i;
+        cellDate = new Date(viewYear, viewMonth - 1, dayNum);
+        cell.classList.add("muted");
+      } else if(i >= prevMonthDays + daysInMonth){
+        dayNum = i - (prevMonthDays + daysInMonth) + 1;
+        cellDate = new Date(viewYear, viewMonth + 1, dayNum);
+        cell.classList.add("muted");
+      } else {
+        dayNum = i - prevMonthDays + 1;
+        cellDate = new Date(viewYear, viewMonth, dayNum);
+      }
+
+      const ymd = toYMD(cellDate);
+      cell.textContent = dayNum;
+
+      // resaltar seleccionado
+      if(ymd === selectedDateStr){
+        cell.classList.add("selected");
+      }
+
+      // fechas con turnos en verde
+      if(OPEN_DATES.has(ymd)){
+        cell.classList.add("has");
+      }
+
+      cell.addEventListener("click", () => goTo(cellDate));
+      gridEl.appendChild(cell);
+    }
+  }
+
+  btnOpen.addEventListener("click", openCal);
+  btnClose.addEventListener("click", closeCal);
+
+  btnPrev.addEventListener("click", () => {
+    viewMonth--;
+    if(viewMonth < 0){ viewMonth = 11; viewYear--; }
+    renderCal();
+  });
+
+  btnNext.addEventListener("click", () => {
+    viewMonth++;
+    if(viewMonth > 11){ viewMonth = 0; viewYear++; }
+    renderCal();
+  });
+
+  btnToday.addEventListener("click", () => {
+    const now = new Date();
+    goTo(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+  });
+
+  // cerrar tocando fuera del modal
+  overlay.addEventListener("click", (e) => {
+    if(e.target === overlay) closeCal();
+  });
+
+  // ESC cierra
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape" && overlay.classList.contains("show")) closeCal();
+  });
+</script>
 
 {% endblock %}
