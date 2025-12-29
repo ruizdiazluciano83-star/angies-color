@@ -343,6 +343,33 @@ def turnos_nuevo(request: Request, date_str: str = "", time_str: str = "", staff
         "salon": salon
     })
 
+@app.get("/turnos/{appt_id}", response_class=HTMLResponse)
+def turnos_editar(
+    request: Request,
+    appt_id: int,
+    db: Session = Depends(get_db)
+):
+    a = db.query(Appointment).filter(Appointment.id == appt_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+    clients = db.query(Client).order_by(Client.name.asc()).all()
+    specialties = db.query(Specialty).order_by(Specialty.name.asc()).all()
+    staff = db.query(Staff).order_by(Staff.name.asc()).all()
+
+    return templates.TemplateResponse(
+        "turno_editar.html",
+        {
+            "request": request,
+            "a": a,
+            "clients": clients,
+            "specialties": specialties,
+            "staff": staff,
+            "salons": [1, 2],  # salones fijos
+        }
+    )
+
+
 @app.post("/turnos/nuevo")
 def turnos_crear(
     date_str: str = Form(...),
