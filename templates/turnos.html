@@ -34,10 +34,23 @@
   </div>
 </div>
 
-<!-- DÍA + FECHA -->
+{# --------- FECHAS CON TURNOS (para pintar verde) ----------
+   En tu app.py antes se llamaba open_dates.
+   Por las dudas, lo hago compatible con open_dates o days_with_turnos.
+#}
+{% set days_with = (open_dates if open_dates is defined else (days_with_turnos if days_with_turnos is defined else [])) %}
+
+<!-- DÍA + FECHA (CLICK = ABRIR CALENDARIO) -->
 <div class="card p-4 mb-4 flex items-center justify-between">
   <div class="font-extrabold text-xl">{{ selected_weekday }}</div>
-  <div class="text-zinc-300 font-bold">{{ selected_date_label }}</div>
+
+  <!-- IMPORTANTE: ahora es un botón clickeable -->
+  <button type="button"
+          id="openCalendarBtn"
+          class="text-zinc-300 font-bold px-3 py-2 rounded-2xl border border-zinc-700 bg-black/20 hover:bg-white/5 active:scale-[0.99]"
+          aria-label="Abrir calendario">
+    {{ selected_date_label }}
+  </button>
 </div>
 
 <!-- LISTA DE SLOTS -->
@@ -108,7 +121,29 @@
   {% endfor %}
 </div>
 
+<!-- ===== MODAL CALENDARIO (Home /turnos) ===== -->
+<div id="calModal" class="cal-backdrop" aria-hidden="true">
+  <div class="cal-card" role="dialog" aria-modal="true" aria-label="Calendario">
+    <div class="cal-head">
+      <button type="button" class="cal-nav" id="calPrev" aria-label="Mes anterior">‹</button>
+      <div class="cal-title" id="calTitle">—</div>
+      <button type="button" class="cal-nav" id="calNext" aria-label="Mes siguiente">›</button>
+    </div>
+
+    <div class="cal-dow">
+      <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
+    </div>
+
+    <div class="cal-grid" id="calGrid"></div>
+
+    <div class="cal-foot">
+      <button type="button" class="cal-btn" id="calClose">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
+  // ====== WhatsApp (tal cual lo tenías) ======
   function setSentUI(btn, sent){
     btn.classList.toggle("is-sent", !!sent);
     if(sent){
@@ -134,13 +169,8 @@
       const data = await res.json();
       if(!data || !data.url) throw new Error("Respuesta inválida del servidor");
 
-      // Abrir WhatsApp
       window.open(data.url, "_blank");
-
-      // Marcar UI inmediatamente (optimista)
       setSentUI(btn, true);
-
-      // Guardar en DB (si falla, al menos queda marcado local)
       fetch(`/turnos/${apptId}/wa_sent`, { method: "POST" }).catch(()=>{});
     }catch(err){
       alert("No pude abrir WhatsApp. Revisá que el cliente tenga teléfono y probá de nuevo.");
@@ -156,14 +186,121 @@
   });
 
   initSentButtons();
+
+  // ====== CALENDARIO HOME /turnos ======
+  const OPEN_DATES = new Set({{ (days_with or []) | tojson }});
+  const STAFF_ID = "{{ staff_id }}";
+  const SALON = "{{ salon }}";
+  const SELECTED = "{{ selected_date }}"; // YYYY-MM-DD
+
+  const modal = document.getElementById("calModal");
+  const grid = document.getElementById("calGrid");
+  const title = document.getElementById("calTitle");
+  const btnOpen = document.getElementById("openCalendarBtn");
+  const btnClose = document.getElementById("calClose");
+  const btnPrev = document.getElementById("calPrev");
+  const btnNext = document.getElementById("calNext");
+
+  function pad2(n){ return (n < 10 ? "0" : "") + n; }
+  function fmtISO(y,m,d){ return `${y}-${pad2(m)}-${pad2(d)}`; }
+
+  function parseISO(s){
+    const [y,m,d] = (s || "").split("-").map(x=>parseInt(x,10));
+    if(!y||!m||!d) return new Date();
+    return new Date(y, m-1, d, 12, 0, 0);
+  }
+
+  let viewDate = parseISO(SELECTED);
+
+  const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  function openModal(){
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    renderCalendar();
+  }
+  function closeModal(){
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function renderCalendar(){
+    const y = viewDate.getFullYear();
+    const m = viewDate.getMonth(); // 0-11
+    title.textContent = `${MONTHS[m]} ${y}`;
+
+    grid.innerHTML = "";
+
+    // Lunes como primer día
+    const first = new Date(y, m, 1, 12, 0, 0);
+    let dow = first.getDay(); // 0 dom, 1 lun...
+    dow = (dow === 0 ? 7 : dow); // dom=7
+    const blanks = dow - 1; // cuántos vacíos antes del 1
+
+    const daysInMonth = new Date(y, m+1, 0, 12, 0, 0).getDate();
+
+    // blanks
+    for(let i=0;i<blanks;i++){
+      const cell = document.createElement("div");
+      cell.className = "cal-cell cal-empty";
+      grid.appendChild(cell);
+    }
+
+    // days
+    for(let d=1; d<=daysInMonth; d++){
+      const iso = fmtISO(y, m+1, d);
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "cal-cell cal-day";
+      cell.textContent = String(d);
+
+      if(OPEN_DATES.has(iso)){
+        cell.classList.add("has-appt");
+        cell.title = "Hay turnos agendados";
+      }
+
+      if(iso === SELECTED){
+        cell.classList.add("is-selected");
+      }
+
+      cell.addEventListener("click", () => {
+        const url = `/turnos?date_str=${iso}&staff_id=${encodeURIComponent(STAFF_ID)}&salon=${encodeURIComponent(SALON)}`;
+        window.location.href = url;
+      });
+
+      grid.appendChild(cell);
+    }
+  }
+
+  btnOpen?.addEventListener("click", openModal);
+  btnClose?.addEventListener("click", closeModal);
+
+  // cerrar tocando afuera
+  modal.addEventListener("click", (e) => {
+    if(e.target === modal) closeModal();
+  });
+
+  btnPrev.addEventListener("click", () => {
+    viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1, 12, 0, 0);
+    renderCalendar();
+  });
+
+  btnNext.addEventListener("click", () => {
+    viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1, 12, 0, 0);
+    renderCalendar();
+  });
+
+  // ESC cierra
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape" && modal.classList.contains("show")) closeModal();
+  });
 </script>
 
 <style>
-  /* default: verde WhatsApp */
+  /* ===== WhatsApp ===== */
   .wa-btn { color: #25D366; position: relative; }
   .wa-btn:active { transform: scale(0.98); }
 
-  /* tilde: oculta por defecto */
   .wa-check{
     position:absolute;
     top:-6px;
@@ -171,7 +308,7 @@
     width:18px;
     height:18px;
     border-radius:999px;
-    background:#2563eb;   /* azul */
+    background:#2563eb;
     color:white;
     font-weight:900;
     font-size:12px;
@@ -182,9 +319,122 @@
     border:2px solid rgba(0,0,0,.6);
   }
 
-  /* estado enviado: botón azul + tilde */
   .wa-btn.is-sent { color: #2563eb; border-color: rgba(37,99,235,.5); }
   .wa-btn.is-sent .wa-check { display:flex; }
+
+  /* ===== Calendario modal ===== */
+  .cal-backdrop{
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    z-index: 9999;
+  }
+  .cal-backdrop.show{ display:flex; }
+
+  .cal-card{
+    width: min(420px, 100%);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(24,24,24,.96);
+    box-shadow: 0 20px 60px rgba(0,0,0,.55);
+    padding: 14px;
+    backdrop-filter: blur(10px);
+  }
+
+  .cal-head{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 4px 10px;
+  }
+  .cal-title{
+    font-weight: 900;
+    letter-spacing: .3px;
+    color: #e5e7eb;
+  }
+  .cal-nav{
+    width: 38px;
+    height: 34px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(0,0,0,.25);
+    color: #e5e7eb;
+    font-weight: 900;
+    font-size: 18px;
+  }
+  .cal-nav:active{ transform: scale(.98); }
+
+  .cal-dow{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    padding: 0 4px 8px;
+    color: rgba(255,255,255,.45);
+    font-weight: 800;
+    font-size: 11px;
+    text-align:center;
+    letter-spacing: .12em;
+  }
+
+  .cal-grid{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    padding: 0 4px 10px;
+  }
+
+  .cal-cell{
+    height: 40px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.06);
+    background: rgba(0,0,0,.22);
+    color: #e5e7eb;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight: 800;
+    font-size: 14px;
+  }
+
+  .cal-empty{
+    opacity: .18;
+    background: transparent;
+    border: 1px dashed rgba(255,255,255,.08);
+  }
+
+  .cal-day:active{ transform: scale(.98); }
+
+  /* día con turnos (verde) */
+  .cal-day.has-appt{
+    border-color: rgba(34,197,94,.45);
+    box-shadow: inset 0 0 0 1px rgba(34,197,94,.25);
+  }
+
+  /* seleccionado */
+  .cal-day.is-selected{
+    background: rgba(234,179,8,.18);
+    border-color: rgba(234,179,8,.35);
+  }
+
+  .cal-foot{
+    display:flex;
+    justify-content:flex-end;
+    padding: 4px;
+  }
+  .cal-btn{
+    padding: 10px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(0,0,0,.25);
+    color: #e5e7eb;
+    font-weight: 900;
+  }
+  .cal-btn:active{ transform: scale(.98); }
 </style>
 
 {% endblock %}
