@@ -343,7 +343,9 @@ def turnos_nuevo(request: Request, date_str: str = "", time_str: str = "", staff
         "salon": salon
     })
 
+# ===== EDITAR TURNO (GET) =====
 @app.get("/turnos/{appt_id}", response_class=HTMLResponse)
+@app.get("/turnos/{appt_id}/editar", response_class=HTMLResponse)
 def turnos_editar(
     request: Request,
     appt_id: int,
@@ -357,6 +359,12 @@ def turnos_editar(
     specialties = db.query(Specialty).order_by(Specialty.name.asc()).all()
     staff = db.query(Staff).order_by(Staff.name.asc()).all()
 
+    # Para que tu turno_editar.html (que usa sl.id / sl.name) NO se rompa:
+    salons = [
+        {"id": 1, "name": "Salon 1"},
+        {"id": 2, "name": "Salon 2"},
+    ]
+
     return templates.TemplateResponse(
         "turno_editar.html",
         {
@@ -365,9 +373,72 @@ def turnos_editar(
             "clients": clients,
             "specialties": specialties,
             "staff": staff,
-            "salons": [1, 2],  # salones fijos
+            "salons": salons,
         }
     )
+
+
+# ===== EDITAR TURNO (POST) =====
+@app.post("/turnos/{appt_id}/editar")
+def turnos_editar_post(
+    appt_id: int,
+    date_str: str = Form(...),
+    time_str: str = Form(...),
+    client_id: int = Form(...),
+    specialty_id: int = Form(0),
+    duration_min: int = Form(30),
+    staff_id: int = Form(0),
+    salon_id: int = Form(1),
+    deposit_paid: str = Form("0"),
+    deposit_amount: int = Form(0),
+    notes: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    a = db.query(Appointment).filter(Appointment.id == appt_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+    # parse fecha/hora
+    try:
+        a.date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        a.start_time = datetime.strptime(time_str, "%H:%M").time()
+    except:
+        raise HTTPException(status_code=400, detail="Fecha u hora inválida")
+
+    a.client_id = int(client_id)
+    a.specialty_id = (int(specialty_id) if int(specialty_id) > 0 else None)
+    a.duration_min = int(duration_min)
+    a.staff_id = (int(staff_id) if int(staff_id) > 0 else None)
+    a.salon = (int(salon_id) if int(salon_id) in (1, 2) else 1)
+
+    paid = (deposit_paid in ("1", "on", "true", "True"))
+    a.deposit_paid = paid
+    a.deposit_amount = (int(deposit_amount) if paid else 0)
+
+    a.notes = (notes or "").strip()
+
+    db.commit()
+
+    return RedirectResponse(
+        f"/turnos?date_str={a.date.strftime('%Y-%m-%d')}&staff_id={(a.staff_id or 0)}&salon={a.salon}",
+        status_code=303
+    )
+
+
+# ===== CANCELAR TURNO (POST) =====
+@app.post("/turnos/{appt_id}/cancelar")
+def turnos_cancelar(
+    appt_id: int,
+    db: Session = Depends(get_db)
+):
+    a = db.query(Appointment).filter(Appointment.id == appt_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+    a.status = "CANCELADO"
+    db.commit()
+    return RedirectResponse("/turnos", status_code=303)
+
 
 
 @app.post("/turnos/nuevo")
