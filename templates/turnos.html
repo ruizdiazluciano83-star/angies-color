@@ -25,6 +25,7 @@
     {% endfor %}
   </div>
 
+  {#  ====== SALÓN OCULTO POR AHORA (NO BORRAR) ======
   <div class="flex items-center gap-2">
     <div class="text-zinc-300 text-sm font-bold">SALÓN</div>
     <a class="pill {% if salon == 1 %}active{% endif %}"
@@ -32,6 +33,7 @@
     <a class="pill {% if salon == 2 %}active{% endif %}"
        href="/turnos?date_str={{ selected_date }}&staff_id={{ staff_id }}&salon=2">2</a>
   </div>
+  #}
 </div>
 
 {# --------- FECHAS CON TURNOS (para pintar verde) ----------
