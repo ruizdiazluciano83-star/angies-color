@@ -56,10 +56,17 @@ def make_wa_message(appt: Appointment) -> str:
     dname = dias[appt.date.weekday()]
     dnum = appt.date.day
     hora = appt.start_time.strftime("%H:%M")
+
+    cliente = (appt.client.name if appt.client and appt.client.name else "hola")
+    servicio = (appt.specialty.name if appt.specialty and appt.specialty.name else "un servicio")
+
     return (
-        f"Cómo estás? Quería recordarte que el día {dname}, {dnum} y {hora}, "
-        f"tenemos agendado un turno. Te esperamos!! Estudio Angie´s Color-"
+        f"Hola cómo estás {cliente}?, recordá que tenés un turno agendado para realizarte {servicio} "
+        f"el día {dname}, {dnum} a las {hora}.\n\n"
+        f"Saludos, te esperamos!!\n"
+        f"Angie’s Color"
     )
+
 
 # ---------------- SLOTS ----------------
 def build_slots(start_h=8, end_h=19, step_min=30):
