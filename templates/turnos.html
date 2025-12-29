@@ -34,106 +34,17 @@
   </div>
 </div>
 
-<!-- DÍA + FECHA (clickeable: abre calendario) -->
-<button type="button" id="openCalendarBtn"
-        class="card p-4 mb-4 flex items-center justify-between w-full text-left hover:bg-white/5"
-        style="cursor:pointer;">
+<!-- DÍA + FECHA -->
+<div class="card p-4 mb-4 flex items-center justify-between">
   <div class="font-extrabold text-xl">{{ selected_weekday }}</div>
   <div class="text-zinc-300 font-bold">{{ selected_date_label }}</div>
-</button>
-
-<!-- MODAL CALENDARIO -->
-<div id="calendarOverlay" class="cal-overlay" aria-hidden="true">
-  <div class="cal-modal card p-4">
-    <div class="flex items-center justify-between mb-3">
-      <button type="button" id="calPrev" class="cal-nav">‹</button>
-      <div id="calTitle" class="font-extrabold"></div>
-      <button type="button" id="calNext" class="cal-nav">›</button>
-    </div>
-
-    <div class="cal-week">
-      <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
-    </div>
-
-    <div id="calGrid" class="cal-grid"></div>
-
-    <div class="mt-4 flex gap-2">
-      <button type="button" id="calToday"
-              class="w-full py-3 rounded-2xl font-extrabold text-zinc-900"
-              style="background: var(--gold);">
-        Ir a hoy
-      </button>
-      <button type="button" id="calClose"
-              class="w-full py-3 rounded-2xl font-extrabold border border-zinc-700 bg-white/5">
-        Cerrar
-      </button>
-    </div>
-  </div>
 </div>
-
-<style>
-  .cal-overlay{
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.65);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    z-index: 9999;
-  }
-  .cal-overlay.show{ display:flex; }
-  .cal-modal{ width: min(420px, 100%); }
-  .cal-nav{
-    width: 44px; height: 44px;
-    border-radius: 16px;
-    border: 1px solid rgba(255,255,255,.08);
-    background: rgba(255,255,255,.05);
-    font-weight: 900;
-  }
-  .cal-week{
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 6px;
-    font-size: 12px;
-    color: rgba(255,255,255,.6);
-    margin-bottom: 8px;
-    text-align: center;
-  }
-  .cal-grid{
-    display:grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 6px;
-  }
-  .cal-day{
-    height: 44px;
-    border-radius: 14px;
-    border: 1px solid rgba(255,255,255,.08);
-    background: rgba(255,255,255,.04);
-    font-weight: 800;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    user-select:none;
-  }
-  .cal-day:hover{ background: rgba(255,255,255,.08); }
-  .cal-day.muted{
-    opacity: .35;
-  }
-  .cal-day.selected{
-    outline: 2px solid rgba(245,197,66,.7);
-    background: rgba(245,197,66,.15);
-  }
-  .cal-day.has{
-    border-color: rgba(34,197,94,.65); /* verde */
-    background: rgba(34,197,94,.10);
-  }
-</style>
 
 <!-- LISTA DE SLOTS -->
 <div class="card overflow-hidden">
   {% for hhmm in slots %}
     {% set st = slot_state[hhmm] %}
+
     {% if st.kind == "FREE" %}
       <a href="/turnos/nuevo?date_str={{ selected_date }}&time_str={{ hhmm }}&staff_id={{ staff_id }}&salon={{ salon }}"
          class="block px-4 py-3 border-b border-zinc-800/70 hover:bg-white/5">
@@ -157,10 +68,12 @@
 
     {% elif st.kind == "APPT" %}
       {% set a = st.appt %}
-      <a href="/turnos/{{ a.id }}/editar"
-         class="block px-4 py-3 border-b border-zinc-800/70 hover:bg-white/5">
+
+      <div class="px-4 py-3 border-b border-zinc-800/70 hover:bg-white/5">
         <div class="flex items-start justify-between gap-3">
-          <div>
+
+          <!-- Link a editar -->
+          <a href="/turnos/{{ a.id }}/editar" class="block flex-1 min-w-0">
             <div class="font-bold">{{ hhmm }} · {{ a.client.name }}</div>
             <div class="text-sm mt-1">
               {% if a.specialty %}
@@ -171,148 +84,107 @@
                 <span class="text-zinc-300"> · Seña ${{ a.deposit_amount }}</span>
               {% endif %}
             </div>
-          </div>
+          </a>
 
-          <div class="shrink-0">
-            <div class="h-10 w-10 rounded-2xl border border-zinc-700 bg-black/30 flex items-center justify-center">
-              <span class="text-green-400 font-black">WA</span>
-            </div>
-          </div>
+          <!-- WhatsApp REAL + estado enviado -->
+          <button type="button"
+                  class="wa-btn shrink-0 h-10 w-10 rounded-2xl border border-zinc-700 bg-black/30 flex items-center justify-center"
+                  data-appt-id="{{ a.id }}"
+                  data-wa-sent="{{ 1 if a.wa_sent else 0 }}"
+                  aria-label="Enviar recordatorio por WhatsApp"
+                  title="WhatsApp">
+            <span class="wa-check" aria-hidden="true">✓</span>
+
+            <!-- ícono WhatsApp (SVG) -->
+            <svg width="20" height="20" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <path fill="currentColor" d="M19.11 17.27c-.29-.15-1.7-.84-1.96-.93-.26-.1-.45-.15-.64.15-.19.29-.74.93-.91 1.12-.17.19-.33.22-.62.07-.29-.15-1.22-.45-2.33-1.43-.86-.77-1.44-1.72-1.61-2.01-.17-.29-.02-.45.13-.59.13-.13.29-.33.43-.5.15-.17.19-.29.29-.48.1-.19.05-.36-.02-.5-.07-.15-.64-1.54-.88-2.11-.23-.55-.47-.47-.64-.48l-.55-.01c-.19 0-.5.07-.76.36-.26.29-1 1-1 2.43 0 1.43 1.03 2.81 1.17 3.01.15.19 2.03 3.1 4.92 4.35.69.3 1.22.48 1.64.61.69.22 1.31.19 1.81.12.55-.08 1.7-.69 1.94-1.36.24-.67.24-1.24.17-1.36-.07-.12-.26-.19-.55-.33z"/>
+              <path fill="currentColor" d="M26.67 5.33C23.98 2.65 20.41 1.17 16.62 1.17 8.96 1.17 2.73 7.4 2.73 15.06c0 2.45.64 4.84 1.85 6.95L2.62 30.83l9-1.92c2.02 1.1 4.3 1.68 6.63 1.68h.01c7.66 0 13.89-6.23 13.89-13.89 0-3.79-1.48-7.36-4.16-10.04zm-10.04 22.4h-.01c-2.07 0-4.1-.56-5.87-1.62l-.42-.25-5.34 1.14 1.14-5.2-.28-.43c-1.18-1.83-1.81-3.95-1.81-6.14 0-6.31 5.13-11.44 11.45-11.44 3.06 0 5.94 1.19 8.1 3.35 2.16 2.16 3.35 5.04 3.35 8.1 0 6.31-5.13 11.45-11.44 11.45z"/>
+            </svg>
+          </button>
+
         </div>
-      </a>
+      </div>
     {% endif %}
   {% endfor %}
 </div>
 
 <script>
-  // fechas con turnos (de app.py). Si no viniera, queda []
-  const OPEN_DATES = new Set({{ open_dates | default([]) | tojson }});
-
-  const staffId = {{ staff_id }};
-  const salon = {{ salon }};
-  const selectedDateStr = "{{ selected_date }}"; // YYYY-MM-DD
-
-  const overlay = document.getElementById("calendarOverlay");
-  const btnOpen = document.getElementById("openCalendarBtn");
-  const btnClose = document.getElementById("calClose");
-  const btnToday = document.getElementById("calToday");
-  const btnPrev = document.getElementById("calPrev");
-  const btnNext = document.getElementById("calNext");
-  const titleEl = document.getElementById("calTitle");
-  const gridEl = document.getElementById("calGrid");
-
-  function pad2(n){ return String(n).padStart(2, "0"); }
-  function toYMD(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-
-  function parseYMD(s){
-    // s: YYYY-MM-DD
-    const [y,m,d] = (s||"").split("-").map(Number);
-    return new Date(y, (m||1)-1, d||1);
-  }
-
-  const selectedDate = parseYMD(selectedDateStr);
-  let viewYear = selectedDate.getFullYear();
-  let viewMonth = selectedDate.getMonth(); // 0-11
-
-  const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-
-  function openCal(){
-    overlay.classList.add("show");
-    overlay.setAttribute("aria-hidden", "false");
-    renderCal();
-  }
-  function closeCal(){
-    overlay.classList.remove("show");
-    overlay.setAttribute("aria-hidden", "true");
-  }
-
-  function goTo(dateObj){
-    const ymd = toYMD(dateObj);
-    window.location.href = `/turnos?date_str=${ymd}&staff_id=${staffId}&salon=${salon}`;
-  }
-
-  function renderCal(){
-    titleEl.textContent = `${monthNames[viewMonth]} ${viewYear}`;
-    gridEl.innerHTML = "";
-
-    const first = new Date(viewYear, viewMonth, 1);
-    // Semana empieza lunes: convertimos day (0 dom..6 sáb) a mondayIndex (0 lun..6 dom)
-    const firstDay = first.getDay(); // 0..6
-    const mondayIndex = (firstDay + 6) % 7;
-
-    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-
-    // días del mes anterior para completar
-    const prevMonthDays = mondayIndex;
-    const prevLastDate = new Date(viewYear, viewMonth, 0).getDate();
-
-    // total celdas: 6 filas x 7 = 42 (siempre)
-    for(let i=0;i<42;i++){
-      const cell = document.createElement("div");
-      cell.className = "cal-day";
-
-      let dayNum, cellDate;
-
-      if(i < prevMonthDays){
-        dayNum = prevLastDate - prevMonthDays + 1 + i;
-        cellDate = new Date(viewYear, viewMonth - 1, dayNum);
-        cell.classList.add("muted");
-      } else if(i >= prevMonthDays + daysInMonth){
-        dayNum = i - (prevMonthDays + daysInMonth) + 1;
-        cellDate = new Date(viewYear, viewMonth + 1, dayNum);
-        cell.classList.add("muted");
-      } else {
-        dayNum = i - prevMonthDays + 1;
-        cellDate = new Date(viewYear, viewMonth, dayNum);
-      }
-
-      const ymd = toYMD(cellDate);
-      cell.textContent = dayNum;
-
-      // resaltar seleccionado
-      if(ymd === selectedDateStr){
-        cell.classList.add("selected");
-      }
-
-      // fechas con turnos en verde
-      if(OPEN_DATES.has(ymd)){
-        cell.classList.add("has");
-      }
-
-      cell.addEventListener("click", () => goTo(cellDate));
-      gridEl.appendChild(cell);
+  function setSentUI(btn, sent){
+    btn.classList.toggle("is-sent", !!sent);
+    if(sent){
+      try { localStorage.setItem("wa_sent_" + btn.dataset.apptId, "1"); } catch(e){}
     }
   }
 
-  btnOpen.addEventListener("click", openCal);
-  btnClose.addEventListener("click", closeCal);
+  function initSentButtons(){
+    document.querySelectorAll(".wa-btn").forEach(btn => {
+      const id = btn.dataset.apptId;
+      const fromDb = btn.getAttribute("data-wa-sent") === "1";
+      let fromLocal = false;
+      try { fromLocal = localStorage.getItem("wa_sent_" + id) === "1"; } catch(e){}
+      setSentUI(btn, fromDb || fromLocal);
+    });
+  }
 
-  btnPrev.addEventListener("click", () => {
-    viewMonth--;
-    if(viewMonth < 0){ viewMonth = 11; viewYear--; }
-    renderCal();
+  async function openWhatsAppForAppointment(btn){
+    const apptId = btn.dataset.apptId;
+    try{
+      const res = await fetch(`/turnos/${apptId}/wa_link`, { headers: { "Accept": "application/json" }});
+      if(!res.ok) throw new Error("No se pudo generar el link WA");
+      const data = await res.json();
+      if(!data || !data.url) throw new Error("Respuesta inválida del servidor");
+
+      // Abrir WhatsApp
+      window.open(data.url, "_blank");
+
+      // Marcar UI inmediatamente (optimista)
+      setSentUI(btn, true);
+
+      // Guardar en DB (si falla, al menos queda marcado local)
+      fetch(`/turnos/${apptId}/wa_sent`, { method: "POST" }).catch(()=>{});
+    }catch(err){
+      alert("No pude abrir WhatsApp. Revisá que el cliente tenga teléfono y probá de nuevo.");
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".wa-btn");
+    if(!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openWhatsAppForAppointment(btn);
   });
 
-  btnNext.addEventListener("click", () => {
-    viewMonth++;
-    if(viewMonth > 11){ viewMonth = 0; viewYear++; }
-    renderCal();
-  });
-
-  btnToday.addEventListener("click", () => {
-    const now = new Date();
-    goTo(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
-  });
-
-  // cerrar tocando fuera del modal
-  overlay.addEventListener("click", (e) => {
-    if(e.target === overlay) closeCal();
-  });
-
-  // ESC cierra
-  document.addEventListener("keydown", (e) => {
-    if(e.key === "Escape" && overlay.classList.contains("show")) closeCal();
-  });
+  initSentButtons();
 </script>
+
+<style>
+  /* default: verde WhatsApp */
+  .wa-btn { color: #25D366; position: relative; }
+  .wa-btn:active { transform: scale(0.98); }
+
+  /* tilde: oculta por defecto */
+  .wa-check{
+    position:absolute;
+    top:-6px;
+    right:-6px;
+    width:18px;
+    height:18px;
+    border-radius:999px;
+    background:#2563eb;   /* azul */
+    color:white;
+    font-weight:900;
+    font-size:12px;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    line-height:18px;
+    border:2px solid rgba(0,0,0,.6);
+  }
+
+  /* estado enviado: botón azul + tilde */
+  .wa-btn.is-sent { color: #2563eb; border-color: rgba(37,99,235,.5); }
+  .wa-btn.is-sent .wa-check { display:flex; }
+</style>
 
 {% endblock %}
